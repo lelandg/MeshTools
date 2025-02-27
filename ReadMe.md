@@ -1,11 +1,14 @@
 ## Overview
+
 This user documentation provides a guide to the command-line usage of a Python toolset called **Mesh Tools**. The tool is designed for performing various operations on 3D meshes. Below is an overview of its features, usage, and examples.
 
 The `mesh_tools.py` module is designed to simplify and enhance the processing of 3D mesh objects in Python. It provides a variety of tools to manipulate and adjust meshes, making it useful for designers, developers, or anyone working on 3D geometry tasks such as rotation, solidification, mirroring, and more.
+
 ---
 
 # Command Line Usage for **Mesh Tools**
 
+```shell
 python mesh_tools.py [-h] [--output OUTPUT] [-depth DEPTH] [-flat] [-mirror] [--rotate ROTATE] [-fix] [--normals] [--show] [--verbose] input_mesh
 
 Mesh Tools
@@ -27,6 +30,8 @@ options:
   --show, -s            Show each generated mesh in the 3D viewer.
   --verbose, -v         Enable verbose mode
   -h, --help            show this help message and exit
+```
+
 ---
 
 ## General Description
