@@ -1,12 +1,44 @@
+"""!
+@file mesh_tools.py
+@brief Tools for manipulating and processing 3D meshes
+@details This module provides functionality for mesh manipulation including rotation,
+mirroring, solidification and fixing mesh issues.
+@author Leland Green
+@version 0.1.0
+@date_created 2025-02-26
+@email lelandgreenproductions@gmail.com
+@license MIT
+"""
+
 __author__ = "Leland Green"
+
 from _version import version
 __version__ = version
-__date_created__ = "2025-01-28"
-__email__ = "lelandgreenproductions@gmail.com"
-__license__ = "Open Source CC0 v1.09" # License of this script is free for all purposes.
+__date_created__ = "2025-02-26"
+__email__ = "lelandgreenproductions+meshtools@gmail.com"
+__license__ = "Creative Commons Zero v1.0 Universal" # License of this script is free for all purposes.
 
-"""
-Version 0.1.0: Initial release.
+from file_tools import find_newest_file_in_directory, get_matching_files
+
+f"""
+MeshTools Version: {__version__}
+
+Version 0.1.0: Initial release. Includes flat, mirror, rotate, fix and show operations for 3D meshes.
+
+Author: {__author__}
+Email: {__email__}
+Date Created: {__date_created__}
+License: {__license__}
+
+See main() for example usage if you may use in your code. 
+Or just use this script as-is to manipulate 3D meshes.
+
+First install the required packages:
+    pip install -r requirements.txt
+
+Then you can run: 
+    python mesh_tools.py -h 
+For usage information.
 """
 
 import argparse
@@ -14,19 +46,28 @@ import os
 import sys
 import traceback
 
+import keyboard
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 import trimesh
 from trimesh import Trimesh
-from scipy.spatial.transform import Rotation as R
 
-from spinner import Spinner
-
+from viewport_3d import print_viewport_3d_help, SUPPORTED_EXTENSIONS, ThreeDViewport
 
 class MeshTools:
-    def __init__(self, mesh_file_name="", verbose=True):
-        """
-        Initialize the depth estimation and mesh generation pipeline.
-        :param model_type: "midas" (default) or "dense_depth". Specifies the depth estimation model.
+    """!
+    @brief A class that contains tools for 3D mesh operations.
+
+    @details Provides various methods for manipulating 3D meshes, such as rotation, mirroring, and fixing invalid mesh configurations.
+    """
+
+    def __init__(self, mesh_file_name: str = "", verbose: bool = True) -> None:
+        """!
+        @brief Initializes the MeshTools class with a given mesh object.
+        
+        @param mesh (Trimesh) The 3D mesh object to be manipulated (e.g., represented as vertices and faces).
+
+        @param verbose (bool) A boolean flag to enable/disable verbose logging.
         """
         self.mesh = None
         self.verbose = verbose
@@ -36,7 +77,6 @@ class MeshTools:
             if self.mesh.triangles is None:
                 self.mesh.trianglulate()
 
-        if verbose: self.spinner = Spinner(f"{{time}} ")
         if self.verbose:
             if self.mesh is not None:
                 print(f"Loaded mesh with {len(self.mesh.vertices)} vertices and {len(self.mesh.faces)} faces.")
@@ -45,13 +85,12 @@ class MeshTools:
 
 
     def rotate_mesh(self, mesh: Trimesh=None, axis: str='y', angle: float=90.0) -> Trimesh:
-        """
-        Rotate a Trimesh object around the specified axis by the given angle.
-
-        :param mesh: A Trimesh object to rotate.
-        :param axis: The axis of rotation ('x', 'y', or 'z').
-        :param angle: The rotation angle in degrees. Negative values rotate downward or counter-clockwise.
-        :return: A new Trimesh object with rotated vertices.
+        """!
+        @brief Rotates the mesh around the specified axis by a given angle.
+        @param axis The axis of rotation ('x', 'y', or 'z').
+        @param angle The angle of rotation in degrees.
+        @details The method rotates the mesh in-place, modifying its vertices.
+        @return A new Trimesh object with the rotated vertices.
         """
         if mesh is None and self.mesh is not None:
             mesh = self.mesh
@@ -90,13 +129,12 @@ class MeshTools:
         return rotated_mesh
 
     def solidify_mesh_with_flat_back(self, mesh: Trimesh = None, flat_back_depth: float = -1.0) -> Trimesh:
-        """
+        """!
         Solidify the mesh by making the back side flat while preserving vertex colors.
-        All added faces will face backward (toward -z).
-
-        :param mesh: Existing 3D trimesh object with vertex colors.
-        :param flat_back_depth: The depth value for the flat back surface.
-        :return: A new solidified trimesh object with vertex colors preserved.
+        @brief Adds thickness to the mesh to create a solid object with a flat back.
+        @param thickness The amount of thickness to add to the mesh.
+        @details This method is particularly useful for converting hollow meshes into solid objects.
+        @return A new Trimesh object with a solidified geometry.
         """
         if mesh is None and self.mesh is not None:
             mesh = self.mesh
@@ -168,12 +206,10 @@ class MeshTools:
 
     # Assuming 'mesh' is your created Trimesh object
     def flip_mesh(self, mesh: Trimesh = None) -> Trimesh:
-        """
-        Flip the mesh geometry horizontally (flipping the y-axis).
-        Adjust the vertex colors accordingly if vertex colors are present.
-
-        :param mesh: Trimesh object to be flipped.
-        :return: Transformed Trimesh object with flipped geometry and adjusted colors.
+        """!
+        @brief Flips the mesh along the specified axis.
+        @param axis The axis along which the mesh will be flipped ('x', 'y', or 'z').
+        @details Flipping a mesh mirrors its geometry along the provided axis.
         """
         if mesh is None and self.mesh is not None:
             mesh = self.mesh
@@ -203,13 +239,14 @@ class MeshTools:
         return mesh
 
     def add_mirror_mesh(self, mesh: Trimesh) -> Trimesh:
-        """
-        Add a mirrored backside to the provided 3D mesh and stitch the halves together.
-        This creates a water-tight mesh by connecting the edges of the original
-        mesh and the mirrored counterpart.
-
-        :param mesh: A Trimesh object representing the front-facing mesh.
-        :return: A new Trimesh object with a water-tight mirrored back side.
+        """!
+        @brief Creates a mirrored copy of the mesh along the z-axis.
+        @details This method takes the input mesh and creates a watertight mesh by:
+                 1. Generating a mirrored version of the mesh along the negative z-axis.
+                 2. Combining the original and mirrored meshes.
+                 3. Stitching boundary edges to ensure a continuous and watertight surface.
+        @param mesh A Trimesh object representing the original mesh to be mirrored.
+        @return A new Trimesh object with the mirrored back side and proper stitching for watertightness.
         """
         if self.verbose: print("Adding mirrored backside to the mesh...")
 
@@ -291,10 +328,13 @@ class MeshTools:
         return watertight_mesh
 
     def fix_mesh(self, mesh: Trimesh = None, fix_normals : bool = False) -> {Trimesh}:
-        """
+        """!
         Fix the mesh by removing any duplicate vertices and faces.
-        :param mesh: Trimesh object to be fixed.
-        :return: Trimesh object with duplicate vertices and faces removed.
+        @brief Attempts to fix errors or irregularities in the mesh.
+        @param mesh The mesh object to be fixed.
+        @param fix_normals A flag to fix the normals of the mesh.
+        @details This method repairs common issues in mesh geometry, such as holes, inverted normals, and non-manifold edges.
+        @return A new Trimesh object with a cleaned and repaired geometry.
         """
         if mesh is None and self.mesh is not None:
             mesh = self.mesh
@@ -320,7 +360,12 @@ class MeshTools:
 
         return mesh
 
+
 def main():
+    """!
+    @brief The main function to execute the mesh tools script.
+    @details Orchestrates the execution of mesh manipulation and file handling functions. Intended to be run as a standalone script.
+    """
     parser = argparse.ArgumentParser(description="Mesh Tools",
                                      epilog='Example usage: "python mesh_tools.py mesh.obj -f -depth -0.3 -mirror -fix" '
                                             "Produces three meshes: solid, mirror, and fixed in the same folder as the original.")
@@ -339,21 +384,56 @@ def main():
     parser.add_argument("--show", "-s", action="store_true", help="Show each generated mesh in the 3D viewer.")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose mode")
 
-    if len(sys.argv) == 1:
+    if len(sys.argv) == 0:
         parser.print_help()
         exit(1)
 
     args = parser.parse_args()
     input_name = args.input
 
-    if not os.path.exists(input_name):
+    if not input_name:
         print(f"Error: Input file not found: {input_name}")
         parser.print_help()
         exit(1)
 
     if not (args.flat or args.mirror or args.fix or args.rotate):
-        print(
-            "Error: No operation selected. Use -flat, -mirror, or -fix to specify an operation.\r\n(I.e., a minimum of -f, -m or -x. Use -h for help)")
+        if args.show:
+            if os.path.exists(input_name):
+                print_viewport_3d_help()
+                print(f"Opening 3D viewport for: {input_name}")
+                viewport = ThreeDViewport(initial_mesh_file=input_name)
+                viewport.run()
+            else:
+                # Collect files using wildcards and filter by extensions
+                input_patterns = sys.argv[1:]  # Exclude the script name
+                if os.path.exists(input_patterns[0]) and os.path.isdir(input_patterns[0]):
+                    valid_files = [find_newest_file_in_directory(input_patterns[0], SUPPORTED_EXTENSIONS)]
+                else:
+                    valid_files = get_matching_files(input_patterns, SUPPORTED_EXTENSIONS)
+
+                if not valid_files:
+                    print(f"No files matches {input_name}")
+                else:
+                    if len(valid_files) > 1:
+                        print(f"Opening viewports for {len(valid_files)} valid files...")
+                    # Open a separate viewport for each valid file
+                    for mesh_file in valid_files:
+                        # Check if Esc is pressed
+                        if keyboard.is_pressed('esc'):
+                            keyboard.read_event()
+                            if keyboard.is_pressed('esc'):
+                                print("Esc key held down. Exiting...")
+                                break  # Exit the loop and quit the program
+                        print(f"Opening 3D viewport for: {mesh_file}")
+                        print_viewport_3d_help()
+                        try:
+                            viewport = ThreeDViewport(initial_mesh_file=mesh_file)
+                            viewport.run()
+                        except Exception as e:
+                            print(f"Error while loading or visualizing {mesh_file}: {traceback.format_exc()}")
+        else:
+            print("Error: No operation selected. Use -flat, -mirror, or -fix to specify an operation. "
+                  "(I.e., a minimum of -f, -m or -x. Use -h for help)")
         parser.print_help()
         exit(1)
 
@@ -413,8 +493,9 @@ def main():
     if args.show:
         print("Showing the generated meshes in the 3D viewer...")
         for name in outnames:
-            import viewport_3d
-            viewport = viewport_3d.ThreeDViewport(name)
+            print(f"Opening 3D viewport for: {name}")
+            print_viewport_3d_help()
+            viewport = ThreeDViewport(name)
             viewport.run()
         print("Done.")
     print("Done.")

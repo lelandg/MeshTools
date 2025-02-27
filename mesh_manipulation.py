@@ -1,28 +1,41 @@
+"""!@file mesh_manipulation.py
+@brief Perform basic manipulation operations on a 3D mesh object.
+@details This script provides a class to manipulate a 3D mesh object within a 3D viewport. The class allows for
+translation, rotation, and scaling of the mesh object using Open3D utilities. The class also provides a method to
+update the viewport display with the current state of the mesh.
+@author Leland Green
+@version 0.1.0
+@date_created 2025-02-26
+@license MIT
+"""
 import numpy as np
 import open3d as o3d
 
 debug = False
 
 class MeshManipulation:
+    """!
+    @brief Perform basic manipulation operations on a 3D mesh object.
+    """
     def __init__(self, viewport, mesh):
-        """
+        """!
         Initialize the MeshManipulation with a given 3D viewport.
 
-        :param viewport: A 3D viewport controlling the display of the mesh.
-        :param mesh: The mesh geometry to manipulate.
+        @param viewport A 3D viewport controlling the display of the mesh.
+        @param mesh The mesh geometry to manipulate.
         """
         self.viewport = viewport
         self.mesh = mesh
         self.mesh_center = self.mesh.get_center() if self.mesh else None  # Cache the center for performance
 
     def move_object(self, dx, dy, dz=0.0, zoom_factor=1.0):
-        """
+        """!
         Move the mesh within the 3D viewport using Open3D utilities.
 
-        :param dx: Amount to move along the x-axis (in world units).
-        :param dy: Amount to move along the y-axis (in world units).
-        :param dz: Amount to move along the z-axis (in world units), default is 0.
-        :param zoom_factor: Scaling factor to zoom the viewport.
+        @param dx Amount to move along the x-axis (in world units).
+        @param dy Amount to move along the y-axis (in world units).
+        @param dz Amount to move along the z-axis (in world units), default is 0.
+        @param zoom_factor Scaling factor to zoom the viewport.
         """
         if self.mesh is None:
             print("Error: No mesh is loaded!")
@@ -56,11 +69,11 @@ class MeshManipulation:
         if debug: print(f"Moved object by dx: {dx}, dy: {dy}, dz: {dz} with zoom factor: {zoom_factor}.")
 
     def rotate_object(self, angle_degrees, counter_clockwise=False):
-        """
+        """!
         Rotate the mesh within the 3D viewport.
 
-        :param angle_degrees: Angle to rotate the mesh by, in degrees.
-        :param counter_clockwise: Direction of rotation (default: True).
+        @param angle_degrees Angle to rotate the mesh by, in degrees.
+        @param counter_clockwise Direction of rotation (default: True).
         """
         if self.mesh is None:
             print("Error: No mesh is loaded!")
@@ -88,7 +101,7 @@ class MeshManipulation:
             print(f"Rotated object by {angle_degrees} degrees {'counter-clockwise' if counter_clockwise else 'clockwise'}.")
 
     def update_viewport(self):
-        """
+        """!
         Refreshes the viewport display with the current state of the mesh.
         """
         self.viewport.clear_geometries()

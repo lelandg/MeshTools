@@ -1,3 +1,14 @@
+"""!@file measurement_grid_visualizer.py
+@brief Measurement grid visualizer module for creating a grid overlay on a 3D mesh.
+@details This module provides functionality to create a measurement grid overlay on a 3D mesh. The grid consists of
+horizontal and vertical lines with text labels indicating the percentage of the grid spacing. The grid is useful for
+measuring distances and aligning objects in the 3D space.
+@version 0.1.0
+@date_created 2025-02-26
+@date_modified 2025-02-26
+@author Leland Green
+@license MIT
+"""
 import traceback
 
 import numpy as np
@@ -10,11 +21,19 @@ from color_transition_gradient_generator import ColorTransition
 rainbow_colors = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"]
 
 class MeasurementGrid:
-    def __init__(self, trimesh, colors=None):
-        """
-        Initialize the MeasurementGrid class with a TriMesh instance.
+    """!
+    @brief A class for creating and visualizing a 3D measurement grid overlay.
+    @details This class provides functionality to create a set of grid lines with percentage labels and render them on
+             a 3D scene using the Open3D library. It is primarily designed for measurement and alignment purposes.
 
-        :param trimesh: TriMesh instance representing the target mesh.
+    @note Requires the Open3D and NumPy libraries.
+    """
+    def __init__(self, trimesh, colors=None):
+        """!
+        @brief Initializes the MeasurementGrid instance.
+        @details Constructs the MeasurementGrid object and initializes its parameters.
+        @param trimesh The 3D mesh object to overlay the grid on.
+        @param colors [Optional] A list of colors to use for the grid lines (default: None).
         """
         self.mesh = trimesh
         if not colors:
@@ -23,11 +42,11 @@ class MeasurementGrid:
         self.colors = ColorTransition(*colors).generate_gradient(21)
 
     def _create_grid_with_labels(self, custom_labels=None):
-        """
-        Create the grid lines with associated labels positioned at the endpoints.
+        """!
+        @brief Create the grid lines with associated labels positioned at the endpoints.
 
-        :param custom_labels: Optional list of 21 labels to use instead of the default percentage labels.
-        :return: List of grid line vertices, edges, colors, and text labels as Open3D geometries.
+        @param custom_labels Optional list of 21 labels to use instead of the default percentage labels.
+        @return vertices, edges, line_colors, labels, all as Open3D geometries.
         """
         if self.mesh is None:
             print("No mesh loaded to create a measurement grid.")
@@ -103,11 +122,11 @@ class MeasurementGrid:
             return None
 
     def create_measurement_grid(self, labels=None):
-        """
-        Create a list of Open3D geometries (LineSet and text labels)
+        """!
+        @brief Create a list of Open3D geometries (LineSet and text labels)
         to be used for the measurement grid.
 
-        :return: A list of Open3D geometries, including the grid lines and text labels.
+        @return A list of Open3D geometries, including the grid lines and text labels.
         """
         if self.mesh is None:
             print("No mesh loaded to create a measurement grid.")

@@ -1,22 +1,55 @@
+"""!
+@file color_transition_gradient_generator.py
+@brief Generate a color gradient transition between two or more colors.
+@details This script generates a color gradient transition between two or more colors. The gradient is created by
+interpolating between the specified colors and generating a list of distinct RGB tuples. The gradient can be used for
+
+@author Leland Green
+@version 0.1.0
+@date_created 2025-02-26
+@email lelandgreenproductions@gmail.com
+@license MIT
+"""
+
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_rgb, LinearSegmentedColormap
 import numpy as np
 
 
 class ColorTransition:
+    """!@brief Handles the creation of a smooth gradient from a set of given color names.
+
+    @details This class provides functionality to define a gradient between specified named
+    colors and generates a list of distinct RGB tuples representing the transition.
+    It ensures even distribution of colors across a specified number of steps, while
+    handling edge cases where fewer unique colors might be calculated.
+
+    param colors (tuple) A tuple of color names provided during initialization. Used for gradient generation.
+    """
     def __init__(self, *colors):
-        """
-        Initialize with a variable number of color names.
+        """!
+        Represents a container for multiple colors.
+
+        This class is initialized with a variable number of color values.
+        The colors are stored as a tuple, preserving the order they are
+        provided. It can hold any number of color values.
+
+        @param colors (tuple) A variable number of colors to be managed.
         """
         self.colors = colors
 
     def generate_gradient(self, num_steps):
-        """
-            Generate a list of distinct colors transitioning evenly through the specified colors.
+        """!
+        Generates a gradient with specified number of color steps based on the colors
+        available in the object. The method ensures that at least two colors are used
+        to construct the gradient and interpolates colors evenly to fill the
+        specified number of steps. Duplicate colors are removed, and if the number of
+        unique colors falls short of the requested steps, the colors are evenly
+        redistributed to maintain the required number of steps.
 
-            :param num_steps: The number of colors to generate in the gradient.
-            :return: A list of unique RGB tuples (0-1 range) for the color transitions.
-            """
+        @param num_steps (int) The number of color steps to generate in the gradient.
+        @retval list[List[int, int, int]] A list of RGB tuples representing the gradient colors.
+        """
         if len(self.colors) < 2:
             raise ValueError("At least two colors are required for a gradient.")
 
@@ -49,8 +82,14 @@ class ColorTransition:
         return unique_colors
 
 
-# Example usage
-if __name__ == "__main__":
+def main():
+    """!
+    This script demonstrates the creation of a color gradient from three distinct
+    colors using the `ColorTransition` class. The gradient involves generating
+    a specified number of distinct color transitions and visualizing it.
+
+    @exception ValueError If inputs for gradient generation or color visualization are invalid.
+    """
     # Create the ColorTransition object with distinct colors
     transition = ColorTransition("red", "orange", "yellow")
 
@@ -70,3 +109,7 @@ if __name__ == "__main__":
     plt.imshow(gradient_image, aspect='auto')
     plt.axis("off")
     plt.show()
+
+# Example usage
+if __name__ == "__main__":
+    main()

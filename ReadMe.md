@@ -49,8 +49,8 @@ To run the script, make sure you have:
 - The tool works with commonly used 3D file formats such as `.obj`, `.ply` and `.stl`. Ensure your input files are in the correct format.
 - If mesh has colors, output will also.
 - The script will generate new mesh files based on the operations performed, with the default naming convention being `<input>_<suffix>.<ext>`, where`<suffix>` is the operation. E.g., "_flat_back" for solidification with a flat back.
-- The `--show` option opens a 3D viewer to display the generated meshes. This uses the included viewer script, vieport_3d.py.
-- This is a standalone script that takes a single file name, a directory name or wildcard inputs. It is not a library, though you're welcome to use it in your own scripts. Usage is as simple as `python viewport_3d.py G:\Downloads\*.ply`.
+- The `--show` option opens a 3D viewer to display the generated meshes. This uses the included viewer script, **vieport_3d.py**.
+- This is a standalone script that takes a single file name, a directory name or wildcard inputs. It is not a library, though you're welcome to use it in your own scripts. Usage is as simple as **`python viewport_3d.py G:\Downloads\*.ply`**.
 - Press <Esc> to close the current viewer window. 
 - Hold down <Esc> to close it *and* exit the program, when using multiple filenames or wildcards. (Stops processing additional files.) 
 
@@ -58,111 +58,40 @@ To run the script, make sure you have:
 
 ## Real-World Example
 
-Below is a complete example for fixing and solidifying a mesh (`example.obj`) while enabling verbose mode:
-
-```shell script
-# Fix a mesh with verbose mode:
+Below is a complete example for fixing and solidifying a mesh (`./models/example.obj`) with verbose mode enabled (`-v`).
+The third example demonstrates solidifying, mirroring, fixing, and rotating a mesh by -90 degrees around the x-axis. Basically, all the options in one command.
+```shell
+# Fix a mesh:
 python mesh_tools.py ./models/example.obj -x -v
+
 # Make a flat back for all models in the models directory with a Z depth of 0.5 (or minimum existing z-value, if lower):
 python mesh_tools.py ./models/*.ply -f -d 0.5 -v
-# Solidify all models in the models directory to a Z depth of -0.3 (or minimum existing z-value, if lower):
-# Create a mirror mesh, mirror it, fix it and rotate it by -90 degrees around the x-axis:
+
+# Solidify all models in the models directory to a Z depth of -0.3 (or minimum existing z-value, if lower), then
+# create a mirror mesh, mirror it, fix it and rotate it by -90 degrees around the x-axis:
 python mesh_tools.py ./models/*.ply -f -d -0.3 -m -x -r x:-90 -v
 ```
 
 ---
 Feel free to reach out if you have issues or need more advanced usage! See mesh_tools.py for my contact info.
 
-############################################################################################################
-## Develeper Documentation of Features
-The module is centered around the `MeshTools` class, along with supporting attributes and functions. Here are the key features you can leverage:
-1. **Rotation of meshes** – Rotate a mesh object to achieve desired orientations.
-2. **Solidification of meshes** – Convert a thin mesh into a solid object, including options for flat backing.
-3. **Flipping meshes** – Flip entire mesh objects for modifications or corrections.
-4. **Mirroring** – Add mirrored versions of the mesh for symmetric designs.
-5. **Mesh fixing** – Correct issues in mesh geometry with systematic cleanup procedures.
-6. **Main Method** – A standalone `main` function typically serving as an entry point to execute various functionalities.
-
 ---
 
-## Classes and Methods
+## Developer Usage Instructions
 
-### **1. Attributes**
-The module uses the following attributes:
-- **`np`** – A key attribute that likely refers to the NumPy library.
-- **`R`** – A generic attribute representing some constant or helper function.
-- **Instance Attributes (Inside `MeshTools`)**
-  - **`mesh`** – The core 3D mesh object being manipulated and processed.
-  - **`verbose`** – A boolean or integer indicating whether detailed logs or outputs should be displayed (`True` = detailed processing steps).
-  - **`spinner`** – A status utility for tracking progress during operations.
-
----
-
-### **2. `MeshTools` Class**
-
-The `MeshTools` class is the core of the module, encapsulating various mesh-related operations. All methods operate on the mesh instance stored within the class.
-
-#### **`__init__(self, mesh, verbose=False)`**
-- **Purpose**: Initialize the `MeshTools` object with a mesh instance and an optional verbosity setting.
-- **Parameters**:
-  - `mesh`: The 3D mesh object to work with.
-  - `verbose`: (Optional) A flag to toggle detailed output for debugging or logging.
-
----
-
-#### **Key Methods**
-Below are the essential methods provided by the `MeshTools` class:
-
-1. **`rotate_mesh(self, axis, angle)`**
-   - **Purpose**: Rotates the mesh around a defined axis (e.g., X, Y, Z) by a specified angle.
-   - **Parameters**:
-     - `axis`: The axis around which the rotation should occur.
-     - `angle`: The angle (in degrees or radians) to rotate the mesh.
-
-2. **`solidify_mesh(self, thickness)`**
-   - **Purpose**: Solidifies a mesh by adding thickness to it. The result is a solid 3D object derived from the original thin geometry.
-   - **Parameters**:
-     - `thickness`: The amount to thicken the mesh.
-
-3. **`solidify_mesh_with_flat_back(self, thickness)`**
-   - **Purpose**: Similar to `solidify_mesh`, but adds a flat back to the solidified mesh. This is often used for objects that need a flat base or "backside."
-   - **Parameters**:
-     - `thickness`: The amount to thicken the mesh.
-
-4. **`flip_mesh(self)`**
-   - **Purpose**: Flips the mesh (e.g., inverting geometry, flipping the normals), typically for adjustment or correction purposes.
-
-5. **`add_mirror_mesh(self, axis)`**
-   - **Purpose**: Creates a mirrored copy of the mesh and adds it to the object for symmetry along a given axis.
-   - **Parameters**:
-     - `axis`: Axis along which the mirror should occur (e.g., X, Y, Z).
-
-6. **`fix_mesh(self)`**
-   - **Purpose**: Performs corrective operations to resolve issues within the mesh, such as fixing broken geometry or ensuring consistency in structure.
-   - **Usage**: This is often an automated process without additional parameters.
-
----
-
-### **3. Main Function**
-The `main` function serves as the module's entry point, enabling execution as a standalone script.
-
-- **Purpose**: Executes predefined or dynamic mesh-processing operations by calling various tool methods from the `MeshTools` class.
-- **Usage**: This is typically invoked when the script is run directly (e.g., `python mesh_tools.py`). Custom commands and logic may be integrated within `main`.
-
----
-
-## Usage Instructions
+If you'd like more thorough documentation, just use Doxygen to generate it. The Doxyfile is included in the repository.
+Just go to the folder you downloaded this and run "doxygen". Results will be in the "docs/html" folder.
 
 ### **Importing the Module**
 To start using the module, import it into your script as shown below:
-```python
+```
 from mesh_tools import MeshTools
 ```
 
 ### **Example Workflow**
-Here’s an illustrative example of how to use `MeshTools` to manipulate a 3D mesh:
+Here’s an illustrative example of how to use `MeshTools` to manipulate a 3D mesh from your Python code:
 
-```python
+```
 # Import MeshTools
 from mesh_tools import MeshTools
 
@@ -181,14 +110,6 @@ mesh_tools.add_mirror_mesh(axis='Y')
 # Fix the mesh
 mesh_tools.fix_mesh()
 ```
-
----
-
-## Common Use Cases
-1. **3D Printing Preparation**: Create watertight and solid meshes suitable for 3D printing.
-2. **Artwork Mirroring**: Add symmetry to 3D objects for designs.
-3. **Game Development**: Fix and optimize meshes for use in engines like Unity or Unreal.
-4. **Geometry Repair**: Use `fix_mesh` to correct errors in downloaded or scanned meshes.
 
 ---
 

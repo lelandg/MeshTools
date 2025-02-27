@@ -1,16 +1,37 @@
+"""!@file mesh_gradient_colorizer.py
+@brief Apply a gradient of colors to a TriangleMesh from back to front.
+@details This script applies a gradient of colors to a TriangleMesh object from back to front. The gradient is created by
+mapping the Z-coordinates of the vertices to a list of colors, which are then assigned to the vertices based on their
+normalized Z-coordinates. The gradient can be used to visualize depth or other properties of the mesh.
+@author Leland Green
+@version 0.1.0
+@date_created 2025-02-26
+@email lelandgreenproductions@gmail.com
+@license MIT
+
+"""
 import numpy as np
 import open3d as o3d
 
 
 class MeshColorizer:
+    """!@brief Apply a gradient of colors to a TriangleMesh from back to front.
+    @details This class provides functionality to apply a gradient of colors to a TriangleMesh object from back to front.
+    The gradient is created by mapping the Z-coordinates of the vertices to a list of colors, which are then assigned to
+    the vertices based on their normalized Z-coordinates. The gradient can be used to visualize depth or other properties
+    of the mesh.
+    """
         @staticmethod
         def apply_gradient_to_mesh(mesh, gradient_colors):
-                """
-                Apply a gradient of colors to a TriangleMesh from back to front.
-
-                :param mesh: The TriangleMesh object containing vertices and other properties.
-                :param gradient_colors: A list of either RGB tuples (0-1 range) or color names (strings) to color the mesh.
-                :return: A new TriangleMesh identical to the input, but colored with the gradient.
+                """!
+                @brief Apply a gradient of colors to a TriangleMesh from back to front.
+                @details This method applies a gradient of colors to a TriangleMesh object from back to front. The gradient
+                is created by mapping the Z-coordinates of the vertices to a list of colors, which are then assigned to the
+                vertices based on their normalized Z-coordinates. The gradient can be used to visualize depth or other
+                properties of the mesh.
+                @param mesh The TriangleMesh object containing vertices and other properties.
+                @param gradient_colors A list of either RGB tuples (0-1 range) or color names (strings) to color the mesh.
+                @return A new TriangleMesh identical to the input, but colored with the gradient.
                 """
                 # Make a deep copy of the mesh to avoid modifying the original
                 colored_mesh = o3d.geometry.TriangleMesh(mesh)
@@ -47,12 +68,13 @@ class MeshColorizer:
 
         @staticmethod
         def _color_to_rgb(color_name):
-                """
-                Convert a color name into an RGB tuple (0-1 range).
-                Example: 'red' -> (1.0, 0.0, 0.0).
+                """!
+                @brief Convert a color name into an RGB tuple (0-1 range).
+                @details This method converts a color name (e.g., 'red', 'blue') into an RGB tuple in the range of 0-1.
+                    Example: 'red' -> (1.0, 0.0, 0.0).
 
-                :param color_name: Name of the color (e.g., 'red', 'blue').
-                :return: RGB tuple in the range of 0-1.
+                @param color_name Name of the color (e.g., 'red', 'blue').
+                @return RGB tuple in the range of 0-1.
                 """
                 color_map = {
                     "red": (1.0, 0.0, 0.0),

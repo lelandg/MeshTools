@@ -1,7 +1,23 @@
-import glob
+"""!
+@file viewport_3d.py
+@brief A script for visualizing 3D meshes in a 3D viewport using Open3D.
+@details This script provides a class for creating a 3D viewport for visualizing and interacting with 3D meshes.
+It supports loading, manipulating, and exporting 3D mesh data, as well as customizing viewport appearance and behavior.
+The viewport includes user interaction features via keyboard and controllers like a space mouse. However, you need
+to change use_space_mouse to True to enable space mouse support.
+
+@note This script requires Open3D and NumPy to be installed.
+@version 0.1.0
+@date_created 2025-02-26
+@date_modified 2025-02-26
+@author Leland Green
+@email lelandgreenproductions@gmail.com
+@license MIT
+"""
+
+import os
 import sys
 import traceback
-import os
 
 import keyboard
 import numpy as np
@@ -11,25 +27,70 @@ import mesh_manipulation
 from color_transition_gradient_generator import ColorTransition
 from measurement_grid_visualizer import MeasurementGrid
 from mesh_gradient_colorizer import MeshColorizer
-from spinner import Spinner
 
 verbose = False
 use_space_mouse = False
+def print_viewport_3d_help():
+    """!
+    @brief Print the help message for the 3D viewport.
+    @details This function prints a help message with instructions for using the 3D viewport to the console.
+    (That's the primary reason it's outside the class definition.)
+    """
+    print("Press 'C' to toggle the rainbow-colored mesh.")
+    print("Press 'G' to toggle the measurement grid.")
+    print("Press 'D' to toggle the grid between percentage and depth values.")
+    print("Use mouse to navigate the viewport.")
+    print("Press 'Esc' to exit the current viewport.")
+    print("Press and hold 'Esc' to exit the program.")
+
+"""
+ @var SUPPORTED_EXTENSIONS
+ @brief Specifies file extensions supported for mesh processing.
+ @type: List[str]
+ """
+SUPPORTED_EXTENSIONS = [".obj", ".ply", ".stl", ".off", ".gltf", ".glb"]
 
 if use_space_mouse:
     from space_mouse_controller import SpaceMouseController
 
 
 class ThreeDViewport:
-    custom_labels: object
+    """!
+    @brief A class representing a 3D viewport for visualizing and interacting with 3D meshes.
+
+    @details The `ThreeDViewport` class provides tools for loading, manipulating, and exporting 3D mesh data.
+    It includes user interaction features via keyboard and controllers like a space mouse,
+    as well as the ability to customize viewport appearance and behavior.
+
+    @note This class supports loading mesh files and exporting them in OBJ and STL formats.
+
+    @section Attributes
+    - mesh_file (str): The file path of the currently loaded 3D mesh.
+    - custom_labels (dict): Custom labels associated with mesh elements.
+    - viewer (Any): The underlying 3D visualization instance.
+    - prev_show_depth_values (bool): Stores the previous state of depth values visibility.
+    - show_depth_values (bool): Determines whether depth values are displayed.
+    - display_grid (bool): Indicates whether the grid is displayed.
+    - measurement_grid (list): A measurement grid used for 3D overlay representation.
+    - show_rainbow_mesh (bool): Flag to apply rainbow colors to the mesh.
+    - rainbow_colors (list): Predefined color scheme for the rainbow mesh rendering.
+    - rainbow_mesh (Any): The currently rendered mesh with a rainbow colormap.
+    - mesh (Any): The active 3D mesh object in the viewport.
+    - pan_x (float): Horizontal panning offset of the viewport.
+    - pan_y (float): Vertical panning offset of the viewport.
+    - zoom_factor (float): The current zoom level.
+    - background_color (tuple): The viewport background color, represented as RGB values.
+    - mesh_manipulator (Any): A helper for performing transformations and operations on the mesh.
+    - space_mouse_controller (Any): Handler for space mouse controller input.
+    """
 
     def __init__(self, initial_mesh_file=None, background_color=None):
-        """
-        Initialize the 3D viewport using Open3D with default parameters
-        for camera movement, rotation, and mesh rendering.
-        :param initial_mesh_file: Optional initial mesh file to load and display.
-        :param background_color: Background color for the viewport as a list [R, G, B].
-                                 Uses dark gray [0.2, 0.2, 0.2] if None.
+        """!@brief Initializes the 3DViewport instance.
+
+        @param initial_mesh_file
+            The path to the initial 3D mesh file to load into the viewport.
+        @param background_color
+            The background color for the viewport in RGB format.
         """
         self.mesh_file = None
         self.custom_labels = None
@@ -81,8 +142,10 @@ class ThreeDViewport:
                 self.viewer.register_animation_callback(self.poll_space_mouse)
 
     def poll_space_mouse(self, frame):
-        """
+        """!
         Poll the SpaceMouse for input and process the data for 3D manipulation.
+        @param frame
+            The current frame number. Unused in this method. Required for the callback.
         """
         try:
             data = self.space_mouse_controller.read_data()
@@ -118,8 +181,10 @@ class ThreeDViewport:
 
 
     def _setup_key_callbacks(self):
-        """
-        Set up key callbacks for panning, zooming, and navigation in the viewport.
+        """!@brief Configures key bindings and input callbacks.
+
+        Sets up the necessary key bindings for user interaction, allowing
+        actions like panning, zooming, rotating, and toggling features.
         """
         # Panning with arrow keys (WASD for directions)
         # self.viewer.register_key_callback(ord("W"), lambda _: self.pan(0, 10))  # Pan up
@@ -141,24 +206,44 @@ class ThreeDViewport:
         self.viewer.register_key_callback(ord("c"), lambda _: self.toggle_rainbow_mesh())
         self.viewer.register_key_callback(ord("C"), lambda _: self.toggle_rainbow_mesh())
         self.viewer.register_key_callback(ord("D"), lambda _: self.toggle_depth_values())
-        self.viewer.register_key_callback(263, lambda _: self.rotate_left())
-        self.viewer.register_key_callback(262, lambda _: self.rotate_right())
+        self.viewer.register_key_callback(263, lambda _: self.rotate_left(10))
+        self.viewer.register_key_callback(262, lambda _: self.rotate_right(10))
 
-    def rotate_left(self):
-        self.mesh_manipulator.rotate_object(10, counter_clockwise=False)
+    def rotate_left(self, degrees: float = 10.0):
+        """!
+        @brief Rotates the mesh or viewport to the left by a specified angle.
 
-    def rotate_right(self):
-        self.mesh_manipulator.rotate_object(10, counter_clockwise=True)
+        @details This method rotates either the active 3D mesh or the camera viewport
+        to the left by the specified number of degrees. The rotation is clockwise
+        relative to the viewport.
+
+        @param degrees
+            The number of degrees to rotate the view or object. Defaults to 10.
+
+        @note The rotation affects all visible geometries in the scene.
+        @return None
+        """
+        self.mesh_manipulator.rotate_object(degrees, counter_clockwise=False)
+
+    def rotate_right(self, degrees=10):
+        """!
+        @brief Rotates the mesh or viewport to the right.
+        @param degrees The number of degrees to rotate right.
+        """
+        self.mesh_manipulator.rotate_object(degrees, counter_clockwise=True)
 
     def toggle_depth_values(self):
-
+        """!
+        @brief Toggles the visibility of depth values in the viewport.
+        Provides a way to enable or disable visualization of depth values for the loaded mesh.
+        """
         self.show_depth_values = not self.show_depth_values
         print(f"Depth values {'visible' if self.show_depth_values else 'hidden'}.")
         self.show_grid()
 
     def toggle_rainbow_mesh(self):
-        """
-        Toggle the visibility of the rainbow-colored mesh in the viewport.
+        """!
+        @brief Toggle the visibility of the rainbow-colored mesh in the viewport.
         """
         self.viewer.clear_geometries()
         self.show_rainbow_mesh = not self.show_rainbow_mesh
@@ -176,6 +261,11 @@ class ThreeDViewport:
         self.show_grid()
 
     def show_mesh(self):
+        """!
+        @brief Ensures the active mesh is visible in the viewport.
+
+        This method re-renders the current mesh in the viewport if it is not already visible.
+        """
         self.viewer.clear_geometries()
         if self.show_rainbow_mesh:
             self.viewer.add_geometry(self.rainbow_mesh)
@@ -183,16 +273,20 @@ class ThreeDViewport:
             self.viewer.add_geometry(self.mesh)
 
     def toggle_grid(self):
-        """
-        Toggle the visibility of the measurement grid in the viewport.
+        """!
+        @brief Toggles the visibility of the measurement grid overlay.
+
+        Turns the measurement grid on or off in the 3D viewport.
         """
         self.display_grid = not self.display_grid
         if verbose: print(f"Measurement grid {'enabled' if self.display_grid else 'disabled'}.")
         self.show_grid()
 
     def show_grid(self):
-        """
-        Show or hide the measurement grid in the viewport based on the display_grid flag.
+        """!
+        @brief Displays the measurement grid overlay in the viewport.
+
+        Visually renders a measurement grid to assist with spatial alignment.
         """
         try:
             self.show_mesh()
@@ -216,20 +310,19 @@ class ThreeDViewport:
             print(f"Error showing grid: {traceback.format_exc()}")
 
     def clear_geometries(self):
-        """
-        Clear all geometries currently loaded in the 3D viewer.
+        """!
+        @brief Clear all geometries currently loaded in the 3D viewer.
         This allows loading a new mesh without accumulating old geometries.
         """
         self.viewer.clear_geometries()
         if verbose: print("Existing geometries cleared from the viewport.")
 
     def update_custom_labels_from_mesh(self, mesh_instance):
-        """
-        Updates self.custom_labels with 21 values based on the range of z values in a given
+        """!
+        @brief Updates self.custom_labels with 21 values based on the range of z values in a given
         open3d.geometry.TriangleMesh instance.
 
-        Args:
-            mesh_instance (open3d.geometry.TriangleMesh): An Open3D TriangleMesh instance to extract the z-range from.
+        @param mesh_instance (open3d.geometry.TriangleMesh): An Open3D TriangleMesh instance to extract the z-range from.
         """
         if not isinstance(mesh_instance, open3d.geometry.TriangleMesh):
             raise ValueError(f"The provided mesh_instance is not a valid open3d.geometry.TriangleMesh instance. Got {type(mesh_instance)}.")
@@ -249,13 +342,12 @@ class ThreeDViewport:
         # Generate 21 equally spaced values within the range
         self.custom_labels = np.linspace(z_min, z_max, num=21).tolist()
 
-    def load_mesh(self, mesh: open3d.geometry.TriangleMesh, depth_labels: [str] = None) -> None:
-        """
-        Load a new 3D triangular mesh file into the viewport.
-        Clears any existing geometry to ensure no duplicates.
+    def load_mesh(self, mesh: open3d.geometry.TriangleMesh, depth_labels: [str] = None):
+        """!
+        @brief Loads a new 3D mesh into the viewport.
 
-        :param mesh: Path to the new mesh file (.obj, .stl, .ply, etc.).
-        :param depth_labels: Optional custom depth labels for the measurement grid.
+        @param filepath (str) The path to the mesh file to be loaded.
+        @param depth_labels (list) Custom depth labels for the measurement grid.
         """
         try:
             self.custom_labels = depth_labels
@@ -288,10 +380,12 @@ class ThreeDViewport:
             print(f"Error loading mesh: {traceback.format_exc()}")
 
     def create_measurement_grid(self, custom_labels=None):
-        """
-        Create a measurement grid using Open3D's LineSet to overlay on the viewport.
+        """!
+        @brief Generates a measurement grid in 3D space.
 
-        :return: An Open3D LineSet object representing the measurement grid.
+        Creates and overlays a measurement grid that aids in visualizing distances and scales.
+
+        @retval An Open3D LineSet object representing the measurement grid.
         """
         if self.mesh is None:
             print("No mesh loaded to create a measurement grid.")
@@ -311,11 +405,11 @@ class ThreeDViewport:
         return grid
 
     def pan(self, dx, dy):
-        """
-        Pan the camera by translating it in the x and y directions.
+        """!
+        @brief Pans the viewport in a specified direction.
 
-        :param dx: Translation along the x-axis.
-        :param dy: Translation along the y-axis.
+        @param dx The horizontal offset for translation in X plane.
+        @param dy The vertical offset for translation in Y plane.
         """
         self.pan_x += dx
         self.pan_y += dy
@@ -323,10 +417,10 @@ class ThreeDViewport:
         ctr.translate(dx, dy, 0.0)  # Translation in the x, y plane
 
     def zoom(self, delta):
-        """
-        Zoom the camera in or out based on a delta factor.
+        """!
+        @brief Changes the zoom level in the viewport.
 
-        :param delta: Positive for zoom in, negative for zoom out.
+        @param delta The zoom multiplier. Positive values zoom in; negative values zoom out.
         """
         self.zoom_factor += delta
         self.zoom_factor = max(0.1, min(self.zoom_factor, 10.0))  # Clamp zoom factor between 0.1 and 10.0
@@ -334,119 +428,69 @@ class ThreeDViewport:
         ctr.set_zoom(1.0 / self.zoom_factor)  # Adjust zoom level
 
     def run(self):
-        """
-        Start the Open3D visualization window.
+        """!
+        @brief Starts the rendering and interaction loop.
+
+        This method begins the main rendering process for the viewport, enabling user interaction.
         """
         if isinstance(self.mesh, str):
             if verbose: print(f"3D viewport is running for {self.mesh_file}")
         self.viewer.run()
         self.viewer.destroy_window()
 
-    def export_mesh_as_obj(self, output_file):
-        """
-        Export the current mesh to a Wavefront OBJ file.
+    def export_mesh_as_obj(self, output_path):
+        """!
+        @brief Exports the current mesh as an OBJ file.
 
-        :param output_file: The path to save the OBJ file.
+        @param output_path The file path to save the OBJ mesh.
         """
         if self.mesh is None:
             print("No mesh loaded to export.")
             return
         try:
-            open3d.io.write_triangle_mesh(output_file, self.mesh)
-            print(f"Successfully exported the mesh to {output_file}")
+            open3d.io.write_triangle_mesh(output_path, self.mesh)
+            print(f"Successfully exported the mesh to {output_path}")
         except Exception as e:
             print(f"Error exporting mesh to OBJ: {traceback.format_exc()}")
 
-    def export_mesh_as_stl(self, output_file):
-        """
-        Export the current mesh to an STL file.
+    def export_mesh_as_stl(self, output_path):
+        """!
+        @brief Exports the current mesh as an STL file.
 
-        :param output_file: The path to save the STL file.
+        @param output_path The file path to save the STL mesh.
         """
         if self.mesh is None:
             print("No mesh loaded to export.")
             return
         try:
-            open3d.io.write_triangle_mesh(output_file, self.mesh, write_ascii=True)
-            print(f"Successfully exported the mesh to {output_file}")
+            open3d.io.write_triangle_mesh(output_path, self.mesh, write_ascii=True)
+            print(f"Successfully exported the mesh to {output_path}")
         except Exception as e:
             print(f"Error exporting mesh to STL: {traceback.format_exc()}")
 
 
-def find_newest_file_in_directory(directory_path):
-    # Define the list of allowed file extensions
-    allowed_extensions = [".obj", ".ply", ".stl", ".off", ".gltf", ".glb"]
 
-    spinner = Spinner("{time} Scanning files...")
-    # Scan the directory and collect files with allowed extensions
-    files_with_timestamps = []
-    for root, dirs, files in os.walk(directory_path):
-        if root.startswith(".") or len(files) == 0:
-            continue  # Skip hidden directories
-        spinner.spin(f"Scanning {len(files)} files in {root}...")
-        for file in files:
-            # Check file extension
-            if any(file.lower().endswith(ext) for ext in allowed_extensions):
-                spinner.spin()
-                file_path = os.path.join(root, file)
-                modified_time = os.path.getmtime(file_path)  # Get the last modified timestamp
-                files_with_timestamps.append((file_path, modified_time))
+from file_tools import find_newest_file_in_directory, get_matching_files
 
-    # Check if any files are collected
-    if not files_with_timestamps:
-        return None  # Return None if no valid files are found
+def main():
+    """!
+    Main entry point for processing and visualizing 3D mesh files. This script can take paths to
+    mesh files as arguments, collect files using wildcards, or optionally identify the newest file
+    in a specified folder or the current directory. It filters the files by supported extensions
+    and opens 3D viewports for visualization of valid mesh files.
 
-    spinner.spin(f"Found {len(files_with_timestamps)} matching files.")
-    # Find the newest file
-    newest_file = max(files_with_timestamps, key=lambda x: x[1])
-    return newest_file[0]  # Return the file name of the newest file
+    This functionality is particularly useful when dealing with meshes in various formats, providing
+    support for wildcards and directories. Features include selecting the newest file, keyboard
+    interrupt handling, and error-resistant mesh visualization.
 
-
-    # # Example usage
-    # directory_to_scan = "C:/example_directory"  # Replace with your directory path
-    # newest_file = find_newest_file_in_directory(directory_to_scan)
-    # if newest_file:
-    #     print(f"The newest file is: {newest_file}")
-    # else:
-    #     print("No valid files found in the directory.")
-
-
-def print_help():
-    print("Press 'C' to toggle the rainbow-colored mesh.")
-    print("Press 'G' to toggle the measurement grid.")
-    print("Press 'D' to toggle the grid between percentage and depth values.")
-    print("Use mouse to navigate the viewport.")
-    print("Press 'Esc' to exit the current viewport.")
-    print("Press and hold 'Esc' to exit the program.")
-
-
-if __name__ == "__main__":
-    # Supported mesh formats
-    SUPPORTED_EXTENSIONS = [".obj", ".ply", ".stl", ".off", ".gltf", ".glb"]
-
-    def get_matching_files(patterns, supported_extensions):
-        """Expand wildcard patterns and return a list of matching files with supported extensions."""
-
-        matched_files = []
-        for pattern in patterns:
-            spinner = Spinner(f"Matching files for: {pattern}. Searching...")
-            spinner.spin()
-            # Resolve wildcard patterns
-            for file in glob.glob(pattern, recursive=True):
-                if os.path.isfile(file) and os.path.splitext(file)[1].lower() in supported_extensions:
-                    matched_files.append(file)
-                    spinner.spin("{time} Matched: " + file)
-
-        spinner.spin(f"Found {len(matched_files)} matching files.")
-        return matched_files
-
-
+    Raises an exception if an error occurs during loading or visualizing a mesh file.
+    """
     # Check if there are any arguments passed to the script
     if len(sys.argv) > 1:
         # Collect files using wildcards and filter by extensions
         input_patterns = sys.argv[1:]  # Exclude the script name
         if os.path.exists(input_patterns[0]) and os.path.isdir(input_patterns[0]):
-            valid_files = [find_newest_file_in_directory(input_patterns[0])]
+            valid_files = [find_newest_file_in_directory(input_patterns[0], SUPPORTED_EXTENSIONS)]
         else:
             valid_files = get_matching_files(input_patterns, SUPPORTED_EXTENSIONS)
 
@@ -455,7 +499,7 @@ if __name__ == "__main__":
         else:
             if len(valid_files) > 1:
                 print(f"Opening viewports for {len(valid_files)} valid files...")
-                print_help()
+                print_viewport_3d_help()
             # Open a separate viewport for each valid file
             for mesh_file in valid_files:
                 # Check if Esc is pressed
@@ -464,15 +508,15 @@ if __name__ == "__main__":
                     if keyboard.is_pressed('esc'):
                         print("Esc key held down. Exiting...")
                         break  # Exit the loop and quit the program
-                print(f"Opening viewport for: {mesh_file}")
                 try:
+                    print(f"Opening viewport for: {mesh_file}")
                     viewport = ThreeDViewport(initial_mesh_file=mesh_file)
                     viewport.run()
                 except Exception as e:
                     print(f"Error while loading or visualizing {mesh_file}: {traceback.format_exc()}")
     else:
         # E.g. fname = "g:/Downloads/lelandgreen_Technical_perspective_Illustration_of_many_rectan_e4408041-480c-40bb-96b6-f415b199dc70_0*2025*.ply"
-        fname = find_newest_file_in_directory("./")
+        fname = find_newest_file_in_directory("./", SUPPORTED_EXTENSIONS)
 
         print(f"Usage: python {os.path.basename(__file__)} [path_to_mesh1] [path_to_mesh2] ...")
         print(f"If [path_to_mesh1] is is a folder name, the newest mesh file in the folder will be used.")
@@ -485,8 +529,13 @@ if __name__ == "__main__":
         print(f"Using newest matching file in Downloads for demonstration: {fname}\r\n")
 
         if fname:
-            print_help()
+            print_viewport_3d_help()
             viewport = ThreeDViewport(initial_mesh_file=fname)
             viewport.run()
         else:
             print(f"No valid mesh files found in the current directory.")
+
+
+if __name__ == "__main__":
+    main()
+
