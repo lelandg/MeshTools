@@ -1,0 +1,9 @@
+numpy
+open3d
+pyvista
+trimesh
+scipy
+keyboard
+pygame
+hidapi
+matplotlib
