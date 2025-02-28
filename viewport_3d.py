@@ -7,14 +7,14 @@ The viewport includes user interaction features via keyboard and controllers lik
 to change use_space_mouse to True to enable space mouse support.
 
 @note This script requires Open3D and NumPy to be installed.
-@version 0.1.0
+@version 0.1.1
 @date_created 2025-02-26
 @date_modified 2025-02-26
 @author Leland Green
 @email lelandgreenproductions@gmail.com
 @license MIT
 """
-
+import configparser
 import os
 import sys
 import traceback
@@ -22,13 +22,14 @@ import traceback
 import keyboard
 import numpy as np
 import open3d
+import pygetwindow as gw
 
 import mesh_manipulation
 from color_transition_gradient_generator import ColorTransition
 from measurement_grid_visualizer import MeasurementGrid
 from mesh_gradient_colorizer import MeshColorizer
 
-verbose = False
+verbose = True
 use_space_mouse = False
 def print_viewport_3d_help():
     """!
@@ -92,6 +93,10 @@ class ThreeDViewport:
         @param background_color
             The background color for the viewport in RGB format.
         """
+        self.viewer = None  # Replace with the actual viewer instance initialization
+        self.window_size = (800, 600)  # Default size (width, height)
+        self.window_position = (100, 100)  # Default position (x, y)
+
         self.mesh_file = None
         self.custom_labels = None
         self.prev_show_depth_values = True
@@ -101,9 +106,16 @@ class ThreeDViewport:
             fname = os.path.split(initial_mesh_file)[-1]
         else:
             fname = ""
-        title = f"3D Viewport - Open3D v{open3d.__version__} - Press 'H' for help - {fname}"
-        if verbose: print (f"Creating window with title: {title}")
-        self.viewer.create_window(window_name=title, width=1024, height=768, left=800, top=50)
+        self.title = f"3D Viewport - Open3D v{open3d.__version__} - Press 'H' for help - {fname}"
+        if verbose: print (f"Creating window with title: {self.title}")
+
+        # Load the viewport settings if the .ini file exists
+        self.ini_file = "config.ini"
+        self.load_viewport_settings()
+        print (f"Loaded window size: {self.window_size[0]} {self.window_size[1]}. Position: {self.window_position[0]} {self.window_position[1]}")
+        self.viewer.create_window(window_name=self.title,
+                                  width=self.window_size[0], height=self.window_size[1],
+                                  left=self.window_position[0], top=self.window_position[1])
 
         rainbow_colors = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"]
         self.rainbow_colors = ColorTransition(*rainbow_colors).generate_gradient(255)
@@ -140,6 +152,37 @@ class ThreeDViewport:
             self.space_mouse_controller = SpaceMouseController()
             if self.space_mouse_controller.sm_device is not None:
                 self.viewer.register_animation_callback(self.poll_space_mouse)
+
+    def load_viewport_settings(self):
+        """Load the viewport size and position from the .ini file."""
+        if os.path.exists(self.ini_file):
+            self.config = configparser.ConfigParser()
+            self.config.read(self.ini_file)
+
+            if 'Viewport' in self.config:
+                self.window_size = (
+                    max(300, int(self.config['Viewport'].get('width', '800'))),
+                    max(200, int(self.config['Viewport'].get('height', '600'))),
+                )
+                self.window_position = (
+                    max(0, int(self.config['Viewport'].get('x', '100'))),
+                    max(0, int(self.config['Viewport'].get('y', '100'))),
+                )
+                print(f"Loaded window size: {self.window_size}. Position: {self.window_position}")
+
+    def save_viewport_settings(self):
+        """Save the current viewport size and position to the .ini file."""
+        self.config = configparser.ConfigParser()
+        self.config.read(self.ini_file)
+        self.config['Viewport'] = {
+            'width': self.window_size[0],
+            'height': self.window_size[1],
+            'x': self.window_position[0],
+            'y': self.window_position[1],
+        }
+
+        with open(self.ini_file, 'w') as configfile:
+            self.config.write(configfile)
 
     def poll_space_mouse(self, frame):
         """!
@@ -436,6 +479,12 @@ class ThreeDViewport:
         if isinstance(self.mesh, str):
             if verbose: print(f"3D viewport is running for {self.mesh_file}")
         self.viewer.run()
+        for w in gw.getWindowsWithTitle(self.title):
+            # if not w.isMaximized:
+                self.window_size = ( w.width - 16, w.height - 39)
+                self.window_position = (w.left + 8, w.top + 31)
+                print(f"Saving values for window size: {self.window_size}. Position: {self.window_position}")
+                self.save_viewport_settings()
         self.viewer.destroy_window()
 
     def export_mesh_as_obj(self, output_path):
