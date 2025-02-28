@@ -1,6 +1,6 @@
 ## Overview
 
-This user documentation provides a guide to the command-line usage of a Python toolset called **Mesh Tools**. The tool is designed for performing various operations on 3D meshes. Below is an overview of its features, usage, and examples.
+This documentation provides a guide to the command-line usage of a Python toolset called **Mesh Tools**. It also covers use in your own Python projects. The tool is designed for performing various operations on 3D meshes, including solidification, mirroring, rotation, and fixing. By following the instructions outlined here, you can effectively utilize the tool to process and manipulate 3D mesh objects.
 
 The `mesh_tools.py` module is designed to simplify and enhance the processing of 3D mesh objects in Python. It provides a variety of tools to manipulate and adjust meshes, making it useful for designers, developers, or anyone working on 3D geometry tasks such as rotation, solidification, mirroring, and more.
 
