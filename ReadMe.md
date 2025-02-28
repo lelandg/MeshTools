@@ -6,7 +6,7 @@ The `mesh_tools.py` module is designed to simplify and enhance the processing of
 
 ---
 
-# Command Line Usage for **Mesh Tools**
+# Command Line Usage for mesh_tools.py
 
 ```shell
 python mesh_tools.py [-h] [--output OUTPUT] [-depth DEPTH] [-flat] [-mirror] [--rotate ROTATE] [-fix] [--normals] [--show] [--verbose] input_mesh
@@ -34,6 +34,27 @@ options:
 
 ---
 
+# Command Line Usage for viewport_3d.py
+
+Basic usage:
+```shell
+python viewport_3d.py [path_to_mesh1] [path_to_mesh2] ...
+```
+If [path_to_mesh1] is a folder name, the newest mesh file in the folder will be used.
+If no arguments are provided, the newest mesh file in the current directory will be used.
+Wildcards are supported for matching multiple files.
+`*.obj`: Matches all `.obj` files in the current directory.
+`models/**/*.stl`: Matches all `.stl` files recursively in the `models` directory.
+Supported mesh formats:  .obj, .ply, .stl, .off, .gltf, .glb
+
+More examples:
+```shell
+python viewport_3d.py *.obj *.ply sample.stl
+python viewport_3d.py -v d:\Downloads\ 
+python viewport_3d.py d:\Downloads\mesh_for_today*.ply
+```
+
+---
 ## General Description
 
 The **Mesh Tools** script provides functionalities to manipulate and process 3D meshes, including operations such as rotation, solidification, mirroring, flipping, and fixing. It is accessible through a Python command-line interface and allows users to run specific mesh processing tasks with relevant parameters.

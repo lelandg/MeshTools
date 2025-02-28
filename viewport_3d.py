@@ -566,8 +566,8 @@ def main():
         fname = find_newest_file_in_directory("./", SUPPORTED_EXTENSIONS)
 
         print(f"Usage: python {os.path.basename(__file__)} [path_to_mesh1] [path_to_mesh2] ...")
-        print(f"If [path_to_mesh1] is is a folder name, the newest mesh file in the folder will be used.")
-        print(f"If no arguments are provided, the newest mesh file in G:/Downloads will be used.")
+        print(f"If [path_to_mesh1] is a folder name, the newest mesh file in the folder will be used.")
+        print(f"If no arguments are provided, the newest mesh file in the current directory will be used.")
         print(f"Wildcards are supported for matching multiple files.")
         print("`*.obj`: Matches all `.obj` files in the current directory.")
         print("`models/**/*.stl`: Matches all `.stl` files recursively in the `models` directory.\r\n"
