@@ -242,15 +242,13 @@ class ThreeDViewport:
         self.viewer.register_key_callback(ord("-"), lambda _: self.zoom(-10))  # Zoom out
 
         # Support for Shift + Arrow Keys for zoom
-        self.viewer.register_key_callback(ord("U"), lambda _: self.zoom(0.1))  # Zoom in
-        self.viewer.register_key_callback(ord("J"), lambda _: self.zoom(-0.1))  # Zoom out
-        self.viewer.register_key_callback(ord("g"), lambda _: self.toggle_grid())  # Zoom out
+        self.viewer.register_key_callback(ord("U"), lambda _: self.zoom(10))  # Zoom in
+        self.viewer.register_key_callback(ord("J"), lambda _: self.zoom(-10))  # Zoom out
         self.viewer.register_key_callback(ord("G"), lambda _: self.toggle_grid())  # Zoom out
-        self.viewer.register_key_callback(ord("c"), lambda _: self.toggle_rainbow_mesh())
         self.viewer.register_key_callback(ord("C"), lambda _: self.toggle_rainbow_mesh())
         self.viewer.register_key_callback(ord("D"), lambda _: self.toggle_depth_values())
-        self.viewer.register_key_callback(263, lambda _: self.rotate_left(10))
-        self.viewer.register_key_callback(262, lambda _: self.rotate_right(10))
+        self.viewer.register_key_callback(263, lambda _: self.rotate_left(15))
+        self.viewer.register_key_callback(262, lambda _: self.rotate_right(15))
 
     def rotate_left(self, degrees: float = 10.0):
         """!
@@ -480,9 +478,9 @@ class ThreeDViewport:
             if verbose: print(f"3D viewport is running for {self.mesh_file}")
         self.viewer.run()
         for w in gw.getWindowsWithTitle(self.title):
-            # if not w.isMaximized:
-                self.window_size = ( w.width - 16, w.height - 39)
-                self.window_position = (w.left + 8, w.top + 31)
+            if not w.isMaximized:
+                self.window_size = ( w.width - 16, w.height - 39) # Adjust for window borders
+                self.window_position = (w.left + 8, w.top + 31) # Adjust for window borders
                 print(f"Saving values for window size: {self.window_size}. Position: {self.window_position}")
                 self.save_viewport_settings()
         self.viewer.destroy_window()
