@@ -24,10 +24,16 @@ import numpy as np
 import open3d
 import pygetwindow as gw
 
-import mesh_manipulation
-from color_transition_gradient_generator import ColorTransition
-from measurement_grid_visualizer import MeasurementGrid
-from mesh_gradient_colorizer import MeshColorizer
+if os.getcwd().endswith("MeshTools") or __name__ == "__main__":
+    import mesh_manipulation as mesh_manipulation
+    from color_transition_gradient_generator import ColorTransition
+    from measurement_grid_visualizer import MeasurementGrid
+    from mesh_gradient_colorizer import MeshColorizer
+else:
+    import MeshTools.mesh_manipulation as mesh_manipulation
+    from MeshTools.color_transition_gradient_generator import ColorTransition
+    from MeshTools.measurement_grid_visualizer import MeasurementGrid
+    from MeshTools.mesh_gradient_colorizer import MeshColorizer
 
 verbose = True
 use_space_mouse = False
@@ -40,6 +46,8 @@ def print_viewport_3d_help():
     print("Press 'C' to toggle the rainbow-colored mesh.")
     print("Press 'G' to toggle the measurement grid.")
     print("Press 'D' to toggle the grid between percentage and depth values.")
+    print("Press '+' or '-' to zoom in or out.")
+    print("Press '<Ctrl>-D' to delete the current mesh.")
     print("Use mouse to navigate the viewport.")
     print("Press 'Esc' to exit the current viewport.")
     print("Press and hold 'Esc' to exit the program.")
@@ -153,6 +161,33 @@ class ThreeDViewport:
             if self.space_mouse_controller.sm_device is not None:
                 self.viewer.register_animation_callback(self.poll_space_mouse)
 
+    def _setup_key_callbacks(self):
+        """!@brief Configures key bindings and input callbacks.
+
+        Sets up the necessary key bindings for user interaction, allowing
+        actions like panning, zooming, rotating, and toggling features.
+        """
+        # Panning with arrow keys (WASD for directions)
+        # self.viewer.register_key_callback(ord("W"), lambda _: self.pan(0, 10))  # Pan up
+        # self.viewer.register_key_callback(ord("S"), lambda _: self.pan(0, -10))  # Pan down
+        # self.viewer.register_key_callback(ord("A"), lambda _: self.pan(-10, 0))  # Pan left
+        # self.viewer.register_key_callback(ord("D"), lambda _: self.pan(10, 0))  # Pan right
+        #
+        # # Zooming with '+' and '-' keys
+        # self.viewer.register_key_callback(ord("+"), lambda _: self.zoom(10))  # Zoom in
+        # self.viewer.register_key_callback(ord("-"), lambda _: self.zoom(-10))  # Zoom out
+        self.viewer.register_key_callback(ord("="), lambda _: self.zoom(10))  # Zoom in
+        self.viewer.register_key_callback(ord("-"), lambda _: self.zoom(-10))  # Zoom out
+
+        # Support for Shift + Arrow Keys for zoom
+        self.viewer.register_key_callback(ord("U"), lambda _: self.zoom(10))  # Zoom in
+        self.viewer.register_key_callback(ord("J"), lambda _: self.zoom(-10))  # Zoom out
+        self.viewer.register_key_callback(ord("G"), lambda _: self.toggle_grid())  # Zoom out
+        self.viewer.register_key_callback(ord("C"), lambda _: self.toggle_rainbow_mesh())
+        self.viewer.register_key_callback(ord("D"), lambda _: self.toggle_depth_values())
+        self.viewer.register_key_callback(263, lambda _: self.rotate_left(15))
+        self.viewer.register_key_callback(262, lambda _: self.rotate_right(15))
+
     def load_viewport_settings(self):
         """Load the viewport size and position from the .ini file."""
         if os.path.exists(self.ini_file):
@@ -222,33 +257,6 @@ class ThreeDViewport:
         #     print("SpaceMouse controller disconnected.")
         #     self.space_mouse_controller = SpaceMouseController()
 
-
-    def _setup_key_callbacks(self):
-        """!@brief Configures key bindings and input callbacks.
-
-        Sets up the necessary key bindings for user interaction, allowing
-        actions like panning, zooming, rotating, and toggling features.
-        """
-        # Panning with arrow keys (WASD for directions)
-        # self.viewer.register_key_callback(ord("W"), lambda _: self.pan(0, 10))  # Pan up
-        # self.viewer.register_key_callback(ord("S"), lambda _: self.pan(0, -10))  # Pan down
-        # self.viewer.register_key_callback(ord("A"), lambda _: self.pan(-10, 0))  # Pan left
-        # self.viewer.register_key_callback(ord("D"), lambda _: self.pan(10, 0))  # Pan right
-        #
-        # # Zooming with '+' and '-' keys
-        # self.viewer.register_key_callback(ord("+"), lambda _: self.zoom(10))  # Zoom in
-        # self.viewer.register_key_callback(ord("-"), lambda _: self.zoom(-10))  # Zoom out
-        self.viewer.register_key_callback(ord("="), lambda _: self.zoom(10))  # Zoom in
-        self.viewer.register_key_callback(ord("-"), lambda _: self.zoom(-10))  # Zoom out
-
-        # Support for Shift + Arrow Keys for zoom
-        self.viewer.register_key_callback(ord("U"), lambda _: self.zoom(10))  # Zoom in
-        self.viewer.register_key_callback(ord("J"), lambda _: self.zoom(-10))  # Zoom out
-        self.viewer.register_key_callback(ord("G"), lambda _: self.toggle_grid())  # Zoom out
-        self.viewer.register_key_callback(ord("C"), lambda _: self.toggle_rainbow_mesh())
-        self.viewer.register_key_callback(ord("D"), lambda _: self.toggle_depth_values())
-        self.viewer.register_key_callback(263, lambda _: self.rotate_left(15))
-        self.viewer.register_key_callback(262, lambda _: self.rotate_right(15))
 
     def rotate_left(self, degrees: float = 10.0):
         """!

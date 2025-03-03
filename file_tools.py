@@ -30,9 +30,9 @@ def find_newest_file_in_directory(directory_path, supported_extensions):
             continue  # Skip hidden directories
         spinner.spin(f"Scanning {len(files)} files in {root}...")
         for file in files:
+            spinner.spin()
             # Check file extension
             if any(file.lower().endswith(ext) for ext in supported_extensions):
-                spinner.spin()
                 file_path = os.path.join(root, file)
                 modified_time = os.path.getmtime(file_path)  # Get the last modified timestamp
                 files_with_timestamps.append((file_path, modified_time))

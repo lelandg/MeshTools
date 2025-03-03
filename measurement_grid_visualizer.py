@@ -38,8 +38,34 @@ class MeasurementGrid:
         self.mesh = trimesh
         if not colors:
             colors = rainbow_colors
-
         self.colors = ColorTransition(*colors).generate_gradient(21)
+
+    def create_grid_with_labels_from_values(self, values : np.ndarray):
+        """! @
+        """
+        # Ensure the
+        if not isinstance(values, np.ndarray):
+            try:
+                values = np.array(values)
+            except Exception as e:
+                raise ValueError(f"Invalid depth map format. Expected ndarray, got {type(values)}. Error: {e}")
+
+        # Flatten values to 1D and get min, max values
+        depth_values = values.flatten()
+        min_depth, max_depth = depth_values.min(), depth_values.max()
+
+        # Create 21 evenly spaced intervals
+        intervals = np.linspace(min_depth, max_depth, 21)
+
+        # Format the intervals as text
+        text_values = [f"{value:.2f}" for value in intervals]
+
+        return self.create_measurement_grid(text_values) # returns vertices, edges, line_colors, labels
+
+
+        # from color_transition_gradient_generator import ColorTransition
+        # self.colors = ColorTransition(*rainbow_colors).generate_gradient(21)
+
 
     def _create_grid_with_labels(self, custom_labels=None):
         """!

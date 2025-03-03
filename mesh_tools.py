@@ -52,7 +52,10 @@ from scipy.spatial.transform import Rotation as R
 import trimesh
 from trimesh import Trimesh
 
-from viewport_3d import print_viewport_3d_help, SUPPORTED_EXTENSIONS, ThreeDViewport
+if os.getcwd().endswith("MeshTools") or __name__ == "__main__":
+    from viewport_3d import print_viewport_3d_help, SUPPORTED_EXTENSIONS, ThreeDViewport
+else:
+    from MeshTools.viewport_3d import print_viewport_3d_help, SUPPORTED_EXTENSIONS, ThreeDViewport
 
 class MeshTools:
     """!
@@ -61,7 +64,7 @@ class MeshTools:
     @details Provides various methods for manipulating 3D meshes, such as rotation, mirroring, and fixing invalid mesh configurations.
     """
 
-    def __init__(self, mesh_file_name: str = "", verbose: bool = True) -> None:
+    def __init__(self, mesh_or_file_name: str = "", verbose: bool = True) -> None:
         """!
         @brief Initializes the MeshTools class with a given mesh object.
         
@@ -71,11 +74,14 @@ class MeshTools:
         """
         self.mesh = None
         self.verbose = verbose
+        if isinstance(mesh_or_file_name, Trimesh):
+            self.mesh = mesh_or_file_name
 
-        if mesh_file_name and os.path.exists(mesh_file_name):
-            self.mesh = trimesh.load(mesh_file_name)
-            if self.mesh.triangles is None:
-                self.mesh.trianglulate()
+        else:
+            if mesh_or_file_name and os.path.exists(mesh_or_file_name):
+                self.mesh = trimesh.load(mesh_or_file_name)
+            else:
+                raise ValueError(f"Invalid mesh provided: {mesh_or_file_name}")
 
         if self.verbose:
             if self.mesh is not None:
@@ -83,6 +89,8 @@ class MeshTools:
             else:
                 print("No mesh loaded.")
 
+        if self.mesh.triangles is None:
+            self.mesh.trianglulate()
 
     def rotate_mesh(self, mesh: Trimesh=None, axis: str='y', angle: float=90.0) -> Trimesh:
         """!
@@ -207,9 +215,9 @@ class MeshTools:
     # Assuming 'mesh' is your created Trimesh object
     def flip_mesh(self, mesh: Trimesh = None) -> Trimesh:
         """!
-        @brief Flips the mesh along the specified axis.
-        @param axis The axis along which the mesh will be flipped ('x', 'y', or 'z').
+        @brief Flips the mesh upside down.
         @details Flipping a mesh mirrors its geometry along the provided axis.
+        @return A new Trimesh object with the flipped geometry.
         """
         if mesh is None and self.mesh is not None:
             mesh = self.mesh
