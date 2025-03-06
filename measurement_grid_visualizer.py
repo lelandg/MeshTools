@@ -9,12 +9,16 @@ measuring distances and aligning objects in the 3D space.
 @author Leland Green
 @license MIT
 """
+import os
 import traceback
 
 import numpy as np
 import open3d as o3d
 
-import text_3d
+if os.getcwd().endswith("MeshTools") or __name__ == "__main__":
+    import text_3d as text_3d
+else:
+    import MeshTools.text_3d as text_3d
 
 from color_transition_gradient_generator import ColorTransition
 
@@ -154,10 +158,13 @@ class MeasurementGrid:
 
         @return A list of Open3D geometries, including the grid lines and text labels.
         """
+        print("create_measurement_grid")
         if self.mesh is None:
             print("No mesh loaded to create a measurement grid.")
             return []
 
+        if not labels:
+            labels = [f"{i * 5}%" for i in range(21)]  # Default labels (0, 5, 10, ..., 100)
         # Generate grid components
         vertices, edges, line_colors, labels = self._create_grid_with_labels(labels)
 
