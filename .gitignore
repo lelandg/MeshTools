@@ -10,3 +10,6 @@ Meshes/Alien Face.ply
 Meshes/Alien Face.png
 Meshes/Alien Face_texture_fit.log
 Meshes/Alien Face_texture_fit.ply
+*.png
+*.ply
+*.log
