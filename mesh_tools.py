@@ -12,6 +12,11 @@ mirroring, solidification and fixing mesh issues.
 
 __author__ = "Leland Green"
 
+from time import strftime
+
+import cv2
+from PIL import Image
+
 from _version import version
 __version__ = version
 __date_created__ = "2025-02-26"
@@ -45,6 +50,7 @@ import argparse
 import os
 import sys
 import traceback
+from datetime import datetime
 
 import keyboard
 import numpy as np
@@ -76,10 +82,11 @@ class MeshTools:
         self.verbose = verbose
         if isinstance(mesh_or_file_name, Trimesh):
             self.mesh = mesh_or_file_name
-
+            self.input_mesh = "<Trimesh Object>"
         else:
             if mesh_or_file_name and os.path.exists(mesh_or_file_name):
                 self.mesh = trimesh.load(mesh_or_file_name)
+                self.input_mesh = mesh_or_file_name
             else:
                 raise ValueError(f"Invalid mesh provided: {mesh_or_file_name}")
 
@@ -368,20 +375,274 @@ class MeshTools:
 
         return mesh
 
+    def apply_colors_from_image(self, mesh, image_path):
+        """
+        Apply colors from an image to the Trimesh instance and return the updated mesh.
+
+        Parameters:
+        mesh (trimesh.Trimesh): The mesh to apply colors to.
+        image_path (str): The path to the image to sample colors from.
+
+        Returns:
+        trimesh.Trimesh: The mesh with updated vertex colors.
+        """
+        from PIL import Image
+        import numpy as np
+
+        # Load the image using PIL
+        image = Image.open(image_path).convert("RGB").transpose(Image.FLIP_TOP_BOTTOM)
+        image_array = np.array(image)
+
+        # Ensure we are modifying the correct mesh instance
+        if self.mesh is None or (mesh is not None and self.mesh != mesh):
+            self.mesh = mesh
+
+        original_colors = self.mesh.visual.vertex_colors if hasattr(mesh.visual, 'vertex_colors') else None
+
+        # Assign default colors if none exist
+        if original_colors is None:
+            original_vertices = self.mesh.vertices
+            original_colors = np.ones((len(original_vertices), 3))  # Default white color
+
+        # Normalize mesh vertices to fit image dimensions
+        vertices = self.mesh.vertices  # Access the vertices of the Trimesh instance
+        min_bounds = vertices.min(axis=0)
+        max_bounds = vertices.max(axis=0)
+        normalized_vertices = (vertices - min_bounds) / (max_bounds - min_bounds)
+
+        # Map normalized vertices to pixel coordinates
+        height, width, _ = image_array.shape
+        pixel_coords = (normalized_vertices[:, :2] * [width, height]).astype(int)
+
+        # Clip coordinates to be within image bounds
+        pixel_coords = np.clip(pixel_coords, 0, [width - 1, height - 1])
+
+        # Sample colors from the image for each vertex
+        vertex_colors = image_array[pixel_coords[:, 1], pixel_coords[:, 0]]
+
+        color_mesh = trimesh.Trimesh(vertices=vertices, faces=self.mesh.faces, vertex_colors=vertex_colors)
+
+        if self.verbose:
+            print("Applied colors from image to mesh.")
+
+        return color_mesh
+
+    # def apply_texture_to_mesh(self, mesh: Trimesh, image_filename: str):
+    #     """
+    #     Applies a texture to a Trimesh object using an image file. Cleans any
+    #     background or transparent areas from the image, scales the image to fit
+    #     the mesh, and applies it as a texture.
+    #
+    #     Args:
+    #         mesh (Trimesh): The mesh object to which the texture is applied.
+    #         image_filename (str): The path to the image file to be used as a texture.
+    #     """
+    #     # Step 1: Open and process the image
+    #     if not os.path.exists(image_filename):
+    #         raise FileNotFoundError(f"Image file not found: {image_filename}")
+    #
+    #     image = Image.open(image_filename).transpose(Image.FLIP_TOP_BOTTOM)
+    #     # image = image.convert("RGBA")  # Ensure RGBA format
+    #     image_data = np.asarray(image)
+    #
+    #     # Detect background pixels (e.g., fully transparent or specific color at edges)
+    #     alpha_channel = image_data[:, :, 3]  # Extract alpha channel
+    #     if np.min(alpha_channel) < 255:  # Check if transparency exists
+    #         # If transparent pixels exist, remove fully transparent rows/columns from the edges
+    #         non_transparent_rows = np.where(np.max(alpha_channel, axis=1) > 0)[0]
+    #         non_transparent_cols = np.where(np.max(alpha_channel, axis=0) > 0)[0]
+    #
+    #         # Crop to the region with content
+    #         image_cropped = image_data[
+    #                         non_transparent_rows[0]:non_transparent_rows[-1] + 1,
+    #                         non_transparent_cols[0]:non_transparent_cols[-1] + 1,
+    #                         ]
+    #     else:
+    #         image_cropped = image_data
+    #
+    #     # Step 2: Resize the image to fit the mesh without distortion
+    #     cropped_image = Image.fromarray(image_cropped)
+    #     width, height = cropped_image.size
+    #     print(f"Original image size: {width}x{height}. Cropped image size: {cropped_image.size}")
+    #     aspect_ratio = width / height
+    #
+    #     # Determine mesh dimensions
+    #     mesh_bbox = mesh.bounds
+    #     mesh_width = mesh_bbox[1][0] - mesh_bbox[0][0]
+    #     mesh_height = mesh_bbox[1][1] - mesh_bbox[0][1]
+    #     mesh_aspect_ratio = mesh_width / mesh_height
+    #
+    #     # Compute the final image dimensions
+    #     if aspect_ratio > mesh_aspect_ratio:
+    #         new_width = int(mesh_width)
+    #         new_height = int(mesh_width / aspect_ratio)
+    #     else:
+    #         new_height = int(mesh_height)
+    #         new_width = int(mesh_height * aspect_ratio)
+    #
+    #     # resized_image = cropped_image.resize((new_width, new_height), Image.ANTIALIAS)
+    #     resized_image = cropped_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    #     print(f"Resized image size: {resized_image.size}")
+    #     cv2.imshow("Resized Image", np.asarray(resized_image))
+    #     cv2.waitKey(0)
+    #
+    #     # Step 3: Apply the texture to the mesh
+    #     # Ensure the texture is mapped correctly (e.g., UV mapping)
+    #     texture_data = np.asarray(resized_image)
+    #     mesh.visual = trimesh.visual.texture.TextureVisuals(image=texture_data)
+    #
+    #     # Debug or verbose output if required
+    #     if getattr(self, "verbose", False):
+    #         print(f"Texture from {image_filename} applied to the mesh.")
+    #
+    #     return mesh
+
+    # From CoPilot:
+
+    def apply_scaled_colors_from_image(self, mesh: Trimesh, image_filename: str) -> Trimesh:
+        """!
+        @brief Applies colors from an image to a Trimesh object.
+        @param mesh The Trimesh object to which the colors will be applied.
+        @param image_filename The path to the image file.
+        @return The Trimesh object with the applied colors.
+        """
+        if not os.path.exists(image_filename):
+            raise FileNotFoundError(f"Image file not found: {image_filename}")
+
+        if not mesh and self.mesh:
+            mesh = self.mesh
+
+        # Open the image
+        image = Image.open(image_filename).transpose(Image.FLIP_TOP_BOTTOM)
+        image = image.convert("RGB")  # Ensure the image is in RGB format
+        image_data = np.asarray(image)
+
+        # Get the dimensions of the image
+        img_height, img_width, _ = image_data.shape
+
+        # Get the bounding box of the mesh
+        bbox_min, bbox_max = mesh.bounds
+        mesh_width = bbox_max[0] - bbox_min[0]
+        mesh_height = bbox_max[1] - bbox_min[1]
+
+        # Map the image colors to the mesh vertices
+        vertex_colors = []
+        for vertex in mesh.vertices:
+            # Normalize the vertex coordinates to the range [0, 1]
+            u = (vertex[0] - bbox_min[0]) / mesh_width
+            v = (vertex[1] - bbox_min[1]) / mesh_height
+
+            # Convert the normalized coordinates to image coordinates
+            img_x = int(u * (img_width - 1))
+            img_y = int(v * (img_height - 1))
+
+            # Get the color from the image
+            color = image_data[img_y, img_x]
+            vertex_colors.append(color)
+
+        # Apply the colors to the mesh
+        mesh.visual.vertex_colors = np.array(vertex_colors)
+
+        mesh = Trimesh(vertices=mesh.vertices, faces=mesh.faces, vertex_colors=vertex_colors)
+
+        return mesh
+
+
+    def print_trimesh_statistics(self, mesh=None, fname=None):
+        """
+        Output mesh statistics to both the screen and a log file.
+        """
+        if mesh is None and self.mesh is not None:
+            mesh = self.mesh
+        elif not hasattr(self, 'mesh') or self.mesh is None:
+            raise ValueError("Mesh object does not exist.")
+
+        strings_to_log = []
+
+        # # Collecting information for statistics
+
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        strings_to_log.append(f'=== {current_time} Trimesh Statistics for "{self.input_mesh}" ===')
+        # General mesh information
+        strings_to_log.append(f"Vertices: {len(mesh.vertices)}")
+        strings_to_log.append(f"Faces: {len(mesh.faces)}")
+        strings_to_log.append(f"Edges: {len(mesh.edges)}")
+        strings_to_log.append(f"Euler Number: {mesh.euler_number}")
+        strings_to_log.append(f"Is Watertight: {mesh.is_watertight}")
+        strings_to_log.append(f"Is Convex: {mesh.is_convex}")
+
+        # Dimensions and geometry
+        strings_to_log.append(f"Bounding Box (Axis-Aligned): {mesh.bounds}")
+        strings_to_log.append(f"Bounding Box Volume: {mesh.bounding_box.volume}")
+        # strings_to_log.append(f"Bounding Sphere Center: {mesh.bounding_sphere.center}")
+        # strings_to_log.append(f"Bounding Sphere Radius: {mesh.bounding_sphere.primitive.radius:.6f}")
+        strings_to_log.append(f"Centroid: {mesh.centroid}")
+        strings_to_log.append(f"Extents: {mesh.extents}")
+        strings_to_log.append(f"Scale: {mesh.scale:.6f}")
+
+        # Surface properties
+        strings_to_log.append(f"Surface Area: {mesh.area:.6f}")
+        strings_to_log.append(f"Volume: {mesh.volume:.6f}")
+
+        # Topology
+        strings_to_log.append(f"Number of Connected Components: {len(mesh.split())}")
+        strings_to_log.append(f"Has Normals: {'Yes' if hasattr(mesh, "vertex_normals") else 'No'}")
+        strings_to_log.append(f"Has Texture Coordinates: {'Yes' if hasattr(mesh.visual, "uv")  else 'No'}")
+
+        # Mass properties (if mass is defined)
+        try:
+            inertia = mesh.moment_inertia
+            strings_to_log.append(f"Moment of Inertia (3x3 matrix): \n{inertia}")
+        except AttributeError:
+            strings_to_log.append("Moment of Inertia: Not available")
+
+        # Rendering information
+        if hasattr(mesh.visual, "vertex_colors"):
+            strings_to_log.append(
+                f"Number of Vertex Colors: {len(mesh.visual.vertex_colors) if mesh.visual.vertex_colors is not None else 0}")
+        else:
+            strings_to_log.append("Vertex Colors: Not available")
+        strings_to_log.append(f"Material: {"Yes" if hasattr(mesh, "material") else 'Not available'}")
+
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        strings_to_log.append(f"=== {current_time} End of Statistics ===")
+
+        # Deriving log file name
+        if fname is None:
+            log_file_name = os.path.splitext(self.input_mesh)[0] + ".log"
+        else:
+            log_file_name = os.path.splitext(fname)[0] + ".log"
+
+        # Writing to log file
+        with (open(log_file_name, "a") as log_file):
+            # Write header (time stamp) if the file is new
+
+            # Write log entries
+            for line in strings_to_log:
+                print(line)  # Print to screen
+                log_file.write(line + '\n')  # Log to file
+
 
 def main():
     """!
     @brief The main function to execute the mesh tools script.
     @details Orchestrates the execution of mesh manipulation and file handling functions. Intended to be run as a standalone script.
     """
-    parser = argparse.ArgumentParser(description="Mesh Tools",
-                                     epilog='Example usage: "python mesh_tools.py mesh.obj -f -depth -0.3 -mirror -fix" '
-                                            "Produces three meshes: solid, mirror, and fixed in the same folder as the original.")
-    parser.add_argument("input", type=str, help="Input mesh file path.")
+    parser = argparse.ArgumentParser(description=f"Mesh Tools v{__version__} by {__author__}",
+                                     epilog='Example usage: "python mesh_tools.py mesh.obj -f -depth -0.3 -mirror -fix -s" '
+                                            "Produces three meshes: flat back with depth of 0.3, a mirrored mesh, "
+                                            'and a "fixed" in the same folder as the original.Then displays each mesh'
+                                            " created (until a key is pressed)."
+                                            "Note that files are overwritten without prompting. Use with caution.")
+    parser.add_argument("input", type=str, help="Mesh file to use for input. Relative or absolute path.")
     parser.add_argument("--output", "-o", type=str,
                         help="Optional output mesh file name. Default: <input>_<suffix>.<ext> where suffix is 'solid', 'mirror', or 'fixed'.\r\n"
                         "If you provide a different file extension, you specify STL, OBJ, PLY, etc. as the output format.")
-    parser.add_argument("-depth", "-d", type=float, default=0.0, help="Depth offset for solidification. Type float. Default: 0.0.\r\nThe lowest existing z-value will always override this.")
+    parser.add_argument("--texture", "-t", type=str, help="Texture file path. Apply colors from an image to the mesh.")
+    parser.add_argument("--texture-fit", "-tf", type=str, help="Match size of mesh and texture.")
+    parser.add_argument("--depth", "-d", type=float, default=0.0, help="Depth offset for solidification. Type float. Default: 0.0.\r\nThe lowest existing z-value will always override this.")
+    parser.add_argument("--info", "-i", action="store_true", help="Print mesh information and statistics.")
     parser.add_argument("-flat", "-f", action="store_true", help="Solidify the mesh with a flat back.")
     parser.add_argument("-mirror", "-m", action="store_true",
                         help="Mirror the front of the mesh to the back. (Written for depth-map generated meshes.)")
@@ -404,7 +665,7 @@ def main():
         parser.print_help()
         exit(1)
 
-    if not (args.flat or args.mirror or args.fix or args.rotate):
+    if not (args.flat or args.mirror or args.fix or args.rotate or args.texture or args.normals or args.info or args.texture_fit):
         if args.show:
             if os.path.exists(input_name):
                 print_viewport_3d_help()
@@ -459,9 +720,17 @@ def main():
     if args.rotate:
         axis, angle = args.rotate.split(":")
         rotate_name = basename + f"_rotate_{axis}{angle}" + ext
+    if args.texture:
+        texture_name = basename + "_texture" + ext
+    if args.texture_fit:
+        texture_fit_name = basename + "_texture_fit" + ext
     verbose = args.verbose
 
+    print(f"Mesh Tools: {__version__} - Loading mesh: {input_name} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}...")
     mesh_tools = MeshTools(input_name, verbose)
+    if args.info:
+        mesh_tools.print_trimesh_statistics()
+
     outnames = []
     try:
         if args.rotate:
@@ -470,6 +739,7 @@ def main():
             print(f"Rotating mesh by {angle} degrees along the {axis}-axis...")
             rotated_mesh = mesh_tools.rotate_mesh(axis=axis, angle=angle)
             rotated_mesh.export(rotate_name)
+            mesh_tools.print_trimesh_statistics(rotated_mesh, rotate_name)
             print(f"Saved rotated mesh to: {rotate_name}")
             outnames.append(rotate_name)
 
@@ -477,6 +747,7 @@ def main():
             print("Solidifying mesh with flat back...")
             solid_mesh = mesh_tools.solidify_mesh_with_flat_back(flat_back_depth=args.depth)
             solid_mesh.export(flat_name)
+            mesh_tools.print_trimesh_statistics(solid_mesh, flat_name)
             print(f"Saved solid mesh with flat back to: {flat_name}")
             outnames.append(flat_name)
 
@@ -484,6 +755,7 @@ def main():
             print("Adding mirrored backside to the mesh...")
             mirrored_mesh = mesh_tools.add_mirror_mesh(mesh_tools.mesh)
             mirrored_mesh.export(mirror_name)
+            mesh_tools.print_trimesh_statistics(mirrored_mesh, mirror_name)
             print(f"Saved mirrored mesh to: {mirror_name}")
             outnames.append(mirror_name)
 
@@ -491,11 +763,28 @@ def main():
             print("Fixing mesh...")
             fixed_mesh = mesh_tools.fix_mesh(mesh_tools.mesh, args.normals)
             fixed_mesh.export(fix_name)
+            mesh_tools.print_trimesh_statistics(fixed_mesh, fix_name)
             print(f"Saved fixed mesh to: {fix_name}")
             outnames.append(fix_name)
 
+        if args.texture:
+            print("Applying texture to mesh...")
+            texture_mesh = mesh_tools.apply_colors_from_image(mesh_tools.mesh, args.texture)
+            texture_mesh.export(texture_name)
+            mesh_tools.print_trimesh_statistics(texture_mesh, texture_name)
+            print(f"Saved texture mesh to: {texture_name}")
+            outnames.append(texture_name)
+
+        if args.texture_fit:
+            print("Applying texture to mesh...")
+            texture_mesh = mesh_tools.apply_scaled_colors_from_image(mesh_tools.mesh, args.texture_fit)
+            texture_mesh.export(texture_fit_name)
+            print(f"Saved texture mesh to: {texture_fit_name}")
+            mesh_tools.print_trimesh_statistics(texture_mesh, texture_fit_name)
+            outnames.append(texture_fit_name)
+
     except Exception as e:
-        print(f"Error: {traceback.format_exc()}")
+        print(f"Error: {traceback.print_exc()}")
         exit(1)
 
     if args.show:

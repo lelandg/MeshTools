@@ -408,6 +408,12 @@ class ThreeDViewport:
                 self.mesh = open3d.io.read_triangle_mesh(mesh)
                 if self.mesh.is_empty():
                     raise ValueError(f"Could not load mesh from {mesh}.")
+                if self.mesh.has_vertex_colors():
+                    self.mesh.compute_vertex_normals()
+                    print(f"Loaded mesh from {mesh} with vertex colors.")
+                else:
+                    print(f"Loaded mesh from {mesh} without vertex colors.")
+
             elif (isinstance(mesh, open3d.geometry.TriangleMesh)):
                 self.mesh = mesh
                 self.mesh_file = "(Trimesh)"

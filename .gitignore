@@ -5,3 +5,8 @@ docs/*
 __pycache__/*
 
 config.ini
+Meshes/Alien Face.log
+Meshes/Alien Face.ply
+Meshes/Alien Face.png
+Meshes/Alien Face_texture_fit.log
+Meshes/Alien Face_texture_fit.ply

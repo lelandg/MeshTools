@@ -9,27 +9,74 @@ The `mesh_tools.py` module is designed to simplify and enhance the processing of
 # Command Line Usage for mesh_tools.py
 
 ```shell
-python mesh_tools.py [-h] [--output OUTPUT] [-depth DEPTH] [-flat] [-mirror] [--rotate ROTATE] [-fix] [--normals] [--show] [--verbose] input_mesh
+usage: mesh_tools.py [-h] [--output OUTPUT] [--texture TEXTURE] [--texture-fit] [--depth DEPTH] [--info] [-flat]
+                     [-mirror] [--rotate ROTATE] [-fix] [--normals] [--show] [--verbose]
+                     input
 
-Mesh Tools
+Mesh Tools v0.1.0 by Leland Green
 
 positional arguments:
-  input                 Input mesh file path.
+  input                 Mesh file to use for input. Relative or absolute path.
 
 options:
+  -h, --help            show this help message and exit
   --output OUTPUT, -o OUTPUT
-                        Optional output mesh file name. Default: <input>_<suffix>.<ext> where suffix is 'solid', 'mirror', or 'fixed'. Example usage: "python mesh_tools.py mesh.ply -f -depth -0.3 -mirror -fix" Produces three meshes: solid, mirror, and fixed in the same folder as the original.
-  -depth DEPTH, -d DEPTH
-                        Depth offset for solidification. Type float. Default: 0.0. The lowest existing z-value will always override this.
+                        Optional output mesh file name. Default: <input>_<suffix>.<ext> where suffix is 'solid',
+                        'mirror', or 'fixed'. If you provide a different file extension, you specify STL, OBJ, PLY,
+                        etc. as the output format.
+  --texture TEXTURE, -t TEXTURE
+                        Texture file path. Apply colors from an image to the mesh.
+  --texture-fit, -tf    Match size of mesh and texture.
+  --depth DEPTH, -d DEPTH
+                        Depth offset of flat back for solidification. Type float. Default: 0.0. The lowest existing z-value will
+                        always override this.
+  --info, -i            Print mesh information and statistics.
   -flat, -f             Solidify the mesh with a flat back.
-  -mirror, -m           Mirror the front of the mesh to the back. (Written for depth-map generated meshes.)
+  -mirror, -m           Mirror the front of the mesh to the back. Written for depth-map generated meshes.
   --rotate ROTATE, -r ROTATE
-                        Rotate the mesh by the given angle in degrees. Specify the axis as 'x', 'y', or 'z'. E.g., -r x:-90
-  -fix, -x              Fix the mesh by removing unreferenced and duplicate vertices and duplicate faces and closing holes.  
+                        Rotate the mesh by the given angle in degrees. Specify the axis as 'x', 'y', or 'z'. E.g., -r
+                        x:90
+  -fix, -x              Fix the mesh by removing unreferenced and duplicate vertices and duplicate faces and closing
+                        holes.
   --normals, -n         Fix normals. Must use with -fix to get this. (It slows down the process.)
   --show, -s            Show each generated mesh in the 3D viewer.
   --verbose, -v         Enable verbose mode
-  -h, --help            show this help message and exit
+
+Example usage: "python mesh_tools.py mesh.obj -f -depth -0.3 -mirror -fix -s" Produces three meshes: flat back with
+depth of 0.3, a mirrored mesh, and a "fixed" in the same folder as the original.Then displays each mesh created (until
+a key is pressed). Note that files are overwritten without prompting. Use with caution.
+```
+
+Using -i or --info will print out the mesh information and statistics. This includes the number of vertices, faces, 
+and edges, as well as the bounding box dimensions and the mesh volume. It creates a log named like the input mesh, but
+with ".log" extension. (It's appended to.) Here's an example of output:
+
+```
+=== 2025-03-14 19:51:19 Trimesh Statistics for ".\Meshes\Alien Face.ply" ===
+Vertices: 181403
+Faces: 360587
+Edges: 1081761
+Euler Number: -16
+Is Watertight: False
+Is Convex: False
+Bounding Box (Axis-Aligned): [[-0.97753525 -1.2316798  -0.22724973]
+ [ 0.96553481  1.22949243  0.24948959]]
+Bounding Box Volume: 2.279877086034417
+Centroid: [-0.00591697  0.13491332  0.03484707]
+Extents: [1.94307005 2.46117222 0.47673932]
+Scale: 3.171777
+Surface Area: 4.287163
+Volume: 0.710150
+Number of Connected Components: 0
+Has Normals: Yes
+Has Texture Coordinates: Yes
+Moment of Inertia (3x3 matrix): 
+[[ 1.93620768e-01 -3.37143757e-05 -2.53623154e-05]
+ [-3.37143757e-05  1.11020849e-01 -5.19935799e-03]
+ [-2.53623154e-05 -5.19935799e-03  3.02408637e-01]]
+Vertex Colors: Not available
+Material: Not available
+=== 2025-03-14 19:51:19 End of Statistics ===
 ```
 
 ---
