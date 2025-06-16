@@ -73,7 +73,7 @@ class MeshTools:
     def __init__(self, mesh_or_file_name: str = "", verbose: bool = True) -> None:
         """!
         @brief Initializes the MeshTools class with a given mesh object.
-        
+
         @param mesh (Trimesh) The 3D mesh object to be manipulated (e.g., represented as vertices and faces).
 
         @param verbose (bool) A boolean flag to enable/disable verbose logging.
@@ -156,8 +156,6 @@ class MeshTools:
         if mesh is None:
             raise ValueError("No mesh provided for solidification.")
 
-        # from trimesh.smoothing import filter_laplacian
-        # mesh = filter_laplacian(mesh)  # Ensure the mesh is clean
         # Extract the original vertices, faces, and vertex colors
         original_vertices = mesh.vertices
         original_faces = mesh.faces
@@ -168,7 +166,6 @@ class MeshTools:
             original_colors = np.ones((len(original_vertices), 3))  # Default white color
 
         z_values = mesh.vertices[:, 2]
-        # pnt(i) = 0.5 * pnt(i) + 0.25 * pnt(i - 1) + 0.25 * pnt(i + 1)
 
         # Calculate the minimum and maximum z values
         min_z = z_values.min()
@@ -241,15 +238,6 @@ class MeshTools:
         # Apply the transformation to the mesh
         mesh.apply_transform(flip_matrix)
 
-        # # Check if the mesh has vertex colors
-        # if hasattr(mesh.visual, 'vertex_colors') and mesh.visual.vertex_colors is not None:
-        #     # Optionally adjust the vertex colors during flipping
-        #     # Example: If flipping affects orientation-dependent effects, handle it here
-        #     # For instance, flipping colors (if mirrored) can be implemented, but often the color remains unchanged
-        #     flipped_colors = mesh.visual.vertex_colors.copy()  # Currently colors are unchanged
-        #
-        #     # Update flipped colors (if needed) - placeholder for any operation on colors.
-        #     mesh.visual.vertex_colors = flipped_colors
 
         return mesh
 
@@ -298,8 +286,6 @@ class MeshTools:
         original_edges_set = set(map(tuple, original_edges))
         mirrored_edges_set = set(map(tuple, mirrored_edges))
 
-        # shared_edges = original_edges_set.intersection(mirrored_edges_set)
-        # boundary_edges = original_edges_set.symmetric_difference(shared_edges)
         boundary_edges = original_edges_set - mirrored_edges_set
 
         if len(boundary_edges) == 0 and self.verbose:
@@ -427,75 +413,6 @@ class MeshTools:
 
         return color_mesh
 
-    # def apply_texture_to_mesh(self, mesh: Trimesh, image_filename: str):
-    #     """
-    #     Applies a texture to a Trimesh object using an image file. Cleans any
-    #     background or transparent areas from the image, scales the image to fit
-    #     the mesh, and applies it as a texture.
-    #
-    #     Args:
-    #         mesh (Trimesh): The mesh object to which the texture is applied.
-    #         image_filename (str): The path to the image file to be used as a texture.
-    #     """
-    #     # Step 1: Open and process the image
-    #     if not os.path.exists(image_filename):
-    #         raise FileNotFoundError(f"Image file not found: {image_filename}")
-    #
-    #     image = Image.open(image_filename).transpose(Image.FLIP_TOP_BOTTOM)
-    #     # image = image.convert("RGBA")  # Ensure RGBA format
-    #     image_data = np.asarray(image)
-    #
-    #     # Detect background pixels (e.g., fully transparent or specific color at edges)
-    #     alpha_channel = image_data[:, :, 3]  # Extract alpha channel
-    #     if np.min(alpha_channel) < 255:  # Check if transparency exists
-    #         # If transparent pixels exist, remove fully transparent rows/columns from the edges
-    #         non_transparent_rows = np.where(np.max(alpha_channel, axis=1) > 0)[0]
-    #         non_transparent_cols = np.where(np.max(alpha_channel, axis=0) > 0)[0]
-    #
-    #         # Crop to the region with content
-    #         image_cropped = image_data[
-    #                         non_transparent_rows[0]:non_transparent_rows[-1] + 1,
-    #                         non_transparent_cols[0]:non_transparent_cols[-1] + 1,
-    #                         ]
-    #     else:
-    #         image_cropped = image_data
-    #
-    #     # Step 2: Resize the image to fit the mesh without distortion
-    #     cropped_image = Image.fromarray(image_cropped)
-    #     width, height = cropped_image.size
-    #     print(f"Original image size: {width}x{height}. Cropped image size: {cropped_image.size}")
-    #     aspect_ratio = width / height
-    #
-    #     # Determine mesh dimensions
-    #     mesh_bbox = mesh.bounds
-    #     mesh_width = mesh_bbox[1][0] - mesh_bbox[0][0]
-    #     mesh_height = mesh_bbox[1][1] - mesh_bbox[0][1]
-    #     mesh_aspect_ratio = mesh_width / mesh_height
-    #
-    #     # Compute the final image dimensions
-    #     if aspect_ratio > mesh_aspect_ratio:
-    #         new_width = int(mesh_width)
-    #         new_height = int(mesh_width / aspect_ratio)
-    #     else:
-    #         new_height = int(mesh_height)
-    #         new_width = int(mesh_height * aspect_ratio)
-    #
-    #     # resized_image = cropped_image.resize((new_width, new_height), Image.ANTIALIAS)
-    #     resized_image = cropped_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-    #     print(f"Resized image size: {resized_image.size}")
-    #     cv2.imshow("Resized Image", np.asarray(resized_image))
-    #     cv2.waitKey(0)
-    #
-    #     # Step 3: Apply the texture to the mesh
-    #     # Ensure the texture is mapped correctly (e.g., UV mapping)
-    #     texture_data = np.asarray(resized_image)
-    #     mesh.visual = trimesh.visual.texture.TextureVisuals(image=texture_data)
-    #
-    #     # Debug or verbose output if required
-    #     if getattr(self, "verbose", False):
-    #         print(f"Texture from {image_filename} applied to the mesh.")
-    #
-    #     return mesh
 
     # From CoPilot:
 
@@ -574,8 +491,6 @@ class MeshTools:
         # Dimensions and geometry
         strings_to_log.append(f"Bounding Box (Axis-Aligned): {mesh.bounds}")
         strings_to_log.append(f"Bounding Box Volume: {mesh.bounding_box.volume}")
-        # strings_to_log.append(f"Bounding Sphere Center: {mesh.bounding_sphere.center}")
-        # strings_to_log.append(f"Bounding Sphere Radius: {mesh.bounding_sphere.primitive.radius:.6f}")
         strings_to_log.append(f"Centroid: {mesh.centroid}")
         strings_to_log.append(f"Extents: {mesh.extents}")
         strings_to_log.append(f"Scale: {mesh.scale:.6f}")

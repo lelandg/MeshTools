@@ -1,7 +1,6 @@
 .venv/*
 venv/*
 .idea/*
-docs/*
 __pycache__/*
 
 config.ini
@@ -13,3 +12,4 @@ Meshes/Alien Face_texture_fit.ply
 *.png
 *.ply
 *.log
+*.jpg

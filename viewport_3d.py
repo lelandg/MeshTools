@@ -405,6 +405,13 @@ class ThreeDViewport:
 
             if (isinstance(mesh, str)):
                 self.mesh_file = mesh
+                # Check if this is an .obj file and if a corresponding .mtl file exists
+                if mesh.lower().endswith('.obj'):
+                    mtl_file = os.path.splitext(mesh)[0] + '.mtl'
+                    if os.path.exists(mtl_file):
+                        print(f"Found corresponding material file: {mtl_file}")
+                        # Open3D will automatically load the .mtl file if it's in the same directory with the same name
+
                 self.mesh = open3d.io.read_triangle_mesh(mesh)
                 if self.mesh.is_empty():
                     raise ValueError(f"Could not load mesh from {mesh}.")
@@ -599,4 +606,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
