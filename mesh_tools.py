@@ -156,65 +156,47 @@ class MeshTools:
         if mesh is None:
             raise ValueError("No mesh provided for solidification.")
 
-        # Extract the original vertices, faces, and vertex colors
-        original_vertices = mesh.vertices
-        original_faces = mesh.faces
-        original_colors = mesh.visual.vertex_colors if hasattr(mesh.visual, 'vertex_colors') else None
+        # A closed input already has a back and needs no boundary walls.
+        if len(self._boundary_edges(mesh)) == 0:
+            return mesh.copy()
 
-        # Assign default colors if none exist
-        if original_colors is None:
-            original_colors = np.ones((len(original_vertices), 3))  # Default white color
+        flat_back_vertices = mesh.vertices.copy()
+        flat_back_vertices[:, 2] = min(flat_back_depth, mesh.vertices[:, 2].min())
+        return self._stitch_back(mesh, flat_back_vertices)
 
-        z_values = mesh.vertices[:, 2]
+    @staticmethod
+    def _boundary_edges(mesh):
+        """Return directed edges used by exactly one face, including hole rims."""
+        _, inverse, counts = np.unique(
+            mesh.edges_sorted, axis=0, return_inverse=True, return_counts=True)
+        return mesh.edges[counts[inverse] == 1]
 
-        # Calculate the minimum and maximum z values
-        min_z = z_values.min()
-        max_z = z_values.max()
-
-        if min_z < flat_back_depth:
-            if self.verbose: print(f"Overriding depth of {flat_back_depth}. Existing Z values are, min: {min_z}, max: {max_z}. Using min.")
-            flat_back_depth = min_z
-
-        # Create the "flat back" vertices by setting all z values to flat_back_depth
-        flat_back_vertices = original_vertices.copy()
-        flat_back_vertices[:, 2] = flat_back_depth
-
-        # Combine original vertices and flat back vertices
-        combined_vertices = np.vstack([original_vertices, flat_back_vertices])
-
-        # Duplicate vertex colors for the flat back vertices
-        combined_colors = np.vstack([original_colors, original_colors])
-
-        # Create faces for the flat back surface, ensure reversed order for facing backward
-        num_vertices = len(original_vertices)
-        flat_back_faces = np.fliplr(original_faces + num_vertices)  # Reverse face winding
-
-        # Create side faces to connect the front and flat back vertices
+    @classmethod
+    def _stitch_back(cls, mesh, back_vertices):
+        """Join a reversed back surface only along the source boundary."""
+        count = len(mesh.vertices)
+        boundary = cls._boundary_edges(mesh)
         side_faces = []
-        for face in original_faces:
-            for i in range(3):
-                # Get the current edge (start, end)
-                start = face[i]
-                end = face[(i + 1) % 3]
-                side_faces.append([start, end, end + num_vertices])
-                side_faces.append([start, end + num_vertices, start + num_vertices])
-                # Create two faces to cover each side, ensure they face backward
-                side_faces.append([start, end + num_vertices, end])
-                side_faces.append([start, start + num_vertices, end + num_vertices])
-
-        side_faces = np.array(side_faces)
-
-        # Combine all faces: front, flat back, and side
-        combined_faces = np.vstack([original_faces, flat_back_faces, side_faces])
-
-        # Create a new mesh with the combined vertices, faces, and preserved colors
-        solid_mesh = trimesh.Trimesh(
-            vertices=combined_vertices,
-            faces=combined_faces,
-            vertex_colors=combined_colors
-        )
-
-        return solid_mesh
+        for start, end in boundary:
+            # Adjacent front and side faces traverse their shared edge oppositely.
+            side_faces.extend([[end, start, start + count],
+                               [end, start + count, end + count]])
+        faces = np.vstack([
+            mesh.faces,
+            mesh.faces[:, ::-1] + count,
+            np.asarray(side_faces, dtype=np.int64).reshape(-1, 3),
+        ])
+        colors = (np.vstack([mesh.visual.vertex_colors, mesh.visual.vertex_colors])
+                  if hasattr(mesh.visual, 'vertex_colors') else None)
+        result = Trimesh(vertices=np.vstack([mesh.vertices, back_vertices]),
+                         faces=faces, vertex_colors=colors, process=False)
+        # Front vertices may already touch the back plane. Weld those seams and
+        # remove the resulting zero-area triangles instead of retaining bad walls.
+        result.merge_vertices()
+        result.update_faces(result.nondegenerate_faces())
+        result.update_faces(result.unique_faces())
+        result.remove_unreferenced_vertices()
+        return result
 
     # Assuming 'mesh' is your created Trimesh object
     def flip_mesh(self, mesh: Trimesh = None) -> Trimesh:
@@ -251,82 +233,9 @@ class MeshTools:
         @param mesh A Trimesh object representing the original mesh to be mirrored.
         @return A new Trimesh object with the mirrored back side and proper stitching for watertightness.
         """
-        if self.verbose: print("Adding mirrored backside to the mesh...")
-
-        # Optionally combine vertex colors if provided
-        if hasattr(mesh.visual, 'vertex_colors') and mesh.visual.vertex_colors is not None:
-            original_colors = mesh.visual.vertex_colors
-            combined_colors = np.vstack([original_colors, original_colors])
-        else:
-            combined_colors = None
-
-        # Original mesh vertices and faces
-        original_vertices = mesh.vertices
-        original_faces = mesh.faces
-
-        # Create mirrored vertices by negating the z-axis
-        mirrored_vertices = original_vertices.copy()
-        mirrored_vertices[:, 2] = -mirrored_vertices[:, 2]
-
-        # Adjust face indices for mirrored vertices
-        num_original_vertices = len(original_vertices)
-        mirrored_faces = original_faces.copy() + num_original_vertices
-
-        # Reverse the face winding for the mirrored side
-        mirrored_faces = mirrored_faces[:, ::-1]
-
-        # Combine original and mirrored vertices and faces
-        combined_vertices = np.vstack([original_vertices, mirrored_vertices])
-        combined_faces = np.vstack([original_faces, mirrored_faces])
-
-        if self.verbose: print("Finding boundary edges...")
-        original_edges = mesh.edges_sorted
-        mirrored_edges = np.roll(original_edges, shift=1, axis=1) + num_original_vertices
-
-        original_edges_set = set(map(tuple, original_edges))
-        mirrored_edges_set = set(map(tuple, mirrored_edges))
-
-        boundary_edges = original_edges_set - mirrored_edges_set
-
-        if len(boundary_edges) == 0 and self.verbose:
-            print("Warning: No boundary edges detected! Mesh may already be watertight.")
-
-        if self.verbose: print("Stitching boundary edges...")
-        stitching_faces = []
-        for edge in boundary_edges:
-            # Validate that the edge has exactly two elements
-            if len(edge) != 2:
-                raise ValueError(f"Edge must contain exactly 2 vertices, but found {len(edge)}: {edge}")
-
-            v1, v2 = edge
-            mv1, mv2 = v1 + num_original_vertices, v2 + num_original_vertices
-
-            stitching_faces.append([v1, v2, mv1])
-            stitching_faces.append([v2, mv2, mv1])
-
-            # Ensure proper vertex relationships before adding additional faces
-            if mv2 != v1 and mv1 != v2:
-                stitching_faces.append([mv2, v2, v1])
-                stitching_faces.append([mv1, mv2, v1])
-
-        stitching_faces = np.array(stitching_faces)
-
-        if self.verbose: print("Combining faces, applying colors, creating watertight mesh...")
-        # Combine stitching faces with others
-        watertight_faces = np.vstack([combined_faces, stitching_faces])
-
-        # Create the watertight Trimesh object
-        watertight_mesh = Trimesh(
-            vertices=combined_vertices,
-            faces=watertight_faces,
-            vertex_colors=combined_colors,
-            process=False
-        )
-        if self.verbose: print(f"Finished creating mesh with {len(watertight_mesh.vertices)} vertices and {len(watertight_mesh.faces)} faces.")
-        watertight_mesh.remove_unreferenced_vertices()
-        if self.verbose: print(f"After remove_unreferenced_vertices() {len(watertight_mesh.vertices)} vertices and {len(watertight_mesh.faces)} faces.")
-        if self.verbose: print(f"Finished creating mesh with {len(watertight_mesh.faces)} faces.")
-        return watertight_mesh
+        mirrored_vertices = mesh.vertices.copy()
+        mirrored_vertices[:, 2] *= -1
+        return self._stitch_back(mesh, mirrored_vertices)
 
     def fix_mesh(self, mesh: Trimesh = None, fix_normals : bool = False) -> {Trimesh}:
         """!
@@ -346,9 +255,11 @@ class MeshTools:
         if self.verbose: print(f"Removing unreferenced vertices...")
         mesh.remove_unreferenced_vertices()
 
-        if len(mesh.faces) != len(mesh.unique_faces()):
-            if self.verbose: print(f"Removing {len(mesh.faces) - len(mesh.unique_faces())} duplicate faces of {len(mesh.faces)} faces")
-            mesh.update_faces(mesh.unique_faces())
+        unique_faces = mesh.unique_faces()
+        duplicate_count = len(mesh.faces) - np.count_nonzero(unique_faces)
+        if duplicate_count:
+            if self.verbose: print(f"Removing {duplicate_count} duplicate faces of {len(mesh.faces)} faces")
+            mesh.update_faces(unique_faces)
 
         if not mesh.is_watertight:
             if self.verbose: print("Mesh is not watertight! Filling holes...")

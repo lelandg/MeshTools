@@ -15,6 +15,7 @@ to change use_space_mouse to True to enable space mouse support.
 @license MIT
 """
 import configparser
+import logging
 import os
 import sys
 import traceback
@@ -430,6 +431,9 @@ class ThreeDViewport:
             self.update_custom_labels_from_mesh(self.mesh)
 
             self.mesh.compute_vertex_normals()
+            # EdgeMesh opens an empty viewport, then loads geometry. Rebind the
+            # controls on every load so they never retain None or an old mesh.
+            self.mesh_manipulator = mesh_manipulation.MeshManipulation(self.viewer, self.mesh)
 
             # Add the new mesh for rendering
             self.viewer.add_geometry(self.mesh)
@@ -512,14 +516,7 @@ class ThreeDViewport:
 
         @param output_path The file path to save the OBJ mesh.
         """
-        if self.mesh is None:
-            print("No mesh loaded to export.")
-            return
-        try:
-            open3d.io.write_triangle_mesh(output_path, self.mesh)
-            print(f"Successfully exported the mesh to {output_path}")
-        except Exception as e:
-            print(f"Error exporting mesh to OBJ: {traceback.format_exc()}")
+        self._export_mesh(output_path)
 
     def export_mesh_as_stl(self, output_path):
         """!
@@ -527,15 +524,21 @@ class ThreeDViewport:
 
         @param output_path The file path to save the STL mesh.
         """
-        if self.mesh is None:
-            print("No mesh loaded to export.")
-            return
-        try:
-            open3d.io.write_triangle_mesh(output_path, self.mesh, write_ascii=True)
-            print(f"Successfully exported the mesh to {output_path}")
-        except Exception as e:
-            print(f"Error exporting mesh to STL: {traceback.format_exc()}")
+        self._export_mesh(output_path)
 
+    def _export_mesh(self, output_path):
+        """Write geometry and propagate logged failures to the UI or CLI caller."""
+        try:
+            if self.mesh is None or self.mesh.is_empty():
+                raise ValueError("No mesh loaded to export.")
+            self.mesh.compute_vertex_normals()
+            # Open3D supports binary STL only; the flag is also valid for OBJ.
+            if not open3d.io.write_triangle_mesh(output_path, self.mesh, write_ascii=False):
+                raise OSError(f"Could not write mesh to {output_path}")
+        except Exception:
+            logging.getLogger(__name__).exception("Mesh export failed: %s", output_path)
+            raise
+        print(f"Successfully exported the mesh to {output_path}")
 
 
 from file_tools import find_newest_file_in_directory, get_matching_files

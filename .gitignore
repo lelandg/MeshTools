@@ -2,6 +2,7 @@
 venv/*
 .idea/*
 __pycache__/*
+tests/__pycache__/*
 
 config.ini
 Meshes/Alien Face.log
