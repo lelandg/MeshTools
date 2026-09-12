@@ -123,6 +123,19 @@ class ViewportMeshTests(unittest.TestCase):
                 np.testing.assert_allclose(
                     viewport.mesh_manipulator.mesh_center, mesh.get_center())
 
+    def test_invalid_replacement_preserves_previous_mesh_and_raises(self):
+        viewport = ThreeDViewport.__new__(ThreeDViewport)
+        viewport.viewer = MagicMock()
+        previous = open3d.geometry.TriangleMesh.create_box()
+        viewport.mesh = previous
+        viewport.custom_labels = ['previous']
+        viewport.mesh_file = 'previous.ply'
+        with self.assertRaises(ValueError), self.assertLogs('MeshTools.viewport_3d', level='ERROR'):
+            viewport.load_mesh(open3d.geometry.TriangleMesh())
+        self.assertIs(viewport.mesh, previous)
+        self.assertEqual(viewport.custom_labels, ['previous'])
+        self.assertEqual(viewport.mesh_file, 'previous.ply')
+
     def test_stl_export_round_trip(self):
         viewport = ThreeDViewport.__new__(ThreeDViewport)
         viewport.mesh = open3d.geometry.TriangleMesh.create_box()

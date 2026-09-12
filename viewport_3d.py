@@ -94,7 +94,7 @@ class ThreeDViewport:
     - space_mouse_controller (Any): Handler for space mouse controller input.
     """
 
-    def __init__(self, initial_mesh_file=None, background_color=None):
+    def __init__(self, initial_mesh_file=None, background_color=None, settings_path=None):
         """!@brief Initializes the 3DViewport instance.
 
         @param initial_mesh_file
@@ -119,7 +119,17 @@ class ThreeDViewport:
         if verbose: print (f"Creating window with title: {self.title}")
 
         # Load the viewport settings if the .ini file exists
-        self.ini_file = "config.ini"
+        if settings_path is None:
+            if os.environ.get('EDGEMESH_DATA_DIR'):
+                state_root = os.environ['EDGEMESH_DATA_DIR']
+            elif sys.platform == 'win32':
+                state_root = os.path.join(os.environ.get('LOCALAPPDATA', os.path.expanduser('~/AppData/Local')), 'EdgeMesh')
+            elif sys.platform == 'darwin':
+                state_root = os.path.expanduser('~/Library/Application Support/EdgeMesh')
+            else:
+                state_root = os.path.join(os.environ.get('XDG_STATE_HOME', os.path.expanduser('~/.local/state')), 'EdgeMesh')
+            settings_path = os.path.join(state_root, 'viewport.ini')
+        self.ini_file = os.fspath(settings_path)
         self.load_viewport_settings()
         print (f"Loaded window size: {self.window_size[0]} {self.window_size[1]}. Position: {self.window_position[0]} {self.window_position[1]}")
         self.viewer.create_window(window_name=self.title,
@@ -217,6 +227,7 @@ class ThreeDViewport:
             'y': self.window_position[1],
         }
 
+        os.makedirs(os.path.dirname(os.path.abspath(self.ini_file)), exist_ok=True)
         with open(self.ini_file, 'w') as configfile:
             self.config.write(configfile)
 
@@ -392,58 +403,42 @@ class ThreeDViewport:
         # Generate 21 equally spaced values within the range
         self.custom_labels = np.linspace(z_min, z_max, num=21).tolist()
 
-    def load_mesh(self, mesh: open3d.geometry.TriangleMesh, depth_labels: [str] = None):
-        """!
-        @brief Loads a new 3D mesh into the viewport.
-
-        @param filepath (str) The path to the mesh file to be loaded.
-        @param depth_labels (list) Custom depth labels for the measurement grid.
-        """
+    def load_mesh(self, mesh, depth_labels=None):
+        """Validate a candidate before replacing the current displayed geometry."""
+        previous = getattr(self, 'mesh', None)
+        previous_labels = getattr(self, 'custom_labels', None)
+        previous_file = getattr(self, 'mesh_file', None)
         try:
-            self.custom_labels = depth_labels
-            # Clear existing geometry before loading a new mesh
-            self.clear_geometries()
-
-            if (isinstance(mesh, str)):
-                self.mesh_file = mesh
-                # Check if this is an .obj file and if a corresponding .mtl file exists
-                if mesh.lower().endswith('.obj'):
-                    mtl_file = os.path.splitext(mesh)[0] + '.mtl'
-                    if os.path.exists(mtl_file):
-                        print(f"Found corresponding material file: {mtl_file}")
-                        # Open3D will automatically load the .mtl file if it's in the same directory with the same name
-
-                self.mesh = open3d.io.read_triangle_mesh(mesh)
-                if self.mesh.is_empty():
-                    raise ValueError(f"Could not load mesh from {mesh}.")
-                if self.mesh.has_vertex_colors():
-                    self.mesh.compute_vertex_normals()
-                    print(f"Loaded mesh from {mesh} with vertex colors.")
-                else:
-                    print(f"Loaded mesh from {mesh} without vertex colors.")
-
-            elif (isinstance(mesh, open3d.geometry.TriangleMesh)):
-                self.mesh = mesh
-                self.mesh_file = "(Trimesh)"
+            if isinstance(mesh, (str, os.PathLike)):
+                candidate = open3d.io.read_triangle_mesh(os.fspath(mesh))
+                mesh_file = os.fspath(mesh)
+            elif isinstance(mesh, open3d.geometry.TriangleMesh):
+                candidate = mesh
+                mesh_file = '(Trimesh)'
             else:
-                if verbose: print(f"Unsupported mesh type: {type(mesh)}")
-
-            self.update_custom_labels_from_mesh(self.mesh)
-
-            self.mesh.compute_vertex_normals()
-            # EdgeMesh opens an empty viewport, then loads geometry. Rebind the
-            # controls on every load so they never retain None or an old mesh.
-            self.mesh_manipulator = mesh_manipulation.MeshManipulation(self.viewer, self.mesh)
-
-            # Add the new mesh for rendering
-            self.viewer.add_geometry(self.mesh)
-            # self._center_mesh_in_view()
+                raise TypeError(f'Unsupported mesh type: {type(mesh)}')
+            if candidate.is_empty() or not len(candidate.triangles):
+                raise ValueError('The mesh contains no renderable faces.')
+            candidate.compute_vertex_normals()
+            self.mesh = candidate
+            self.mesh_file = mesh_file
+            self.custom_labels = depth_labels
+            self.update_custom_labels_from_mesh(candidate)
+            measurement_grid = MeasurementGrid(candidate).create_measurement_grid()
+            self.clear_geometries()
+            if self.viewer.add_geometry(candidate) is False:
+                raise RuntimeError('The renderer could not display the mesh.')
             self.viewer.get_render_option().background_color = self.background_color
-
-            self.measurement_grid = MeasurementGrid(self.mesh).create_measurement_grid()
-            if verbose: print(f"Mesh loaded: {mesh}")
-        except Exception as e:
-            print(f"Error loading mesh: {traceback.format_exc()}")
+            self.mesh_manipulator = mesh_manipulation.MeshManipulation(self.viewer, candidate)
+            self.measurement_grid = measurement_grid
+            return True
+        except Exception:
+            self.mesh, self.custom_labels, self.mesh_file = previous, previous_labels, previous_file
+            logging.getLogger(__name__).exception('Mesh loading failed')
+            if previous is not None:
+                self.viewer.clear_geometries()
+                self.viewer.add_geometry(previous)
+            raise
 
     def create_measurement_grid(self, custom_labels=None):
         """!
